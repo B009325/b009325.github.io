@@ -1,0 +1,810 @@
+
+
+/*Aggregate Tables*/
+LIBNAME DW_AGG ODBC  DATASRC=DW_TC  SCHEMA=AGG ;
+/*BAU Sales Tables*/
+LIBNAME DW_BAU ODBC  DATASRC=DW_TC_BAU_Imports  SCHEMA=DBO ;
+/*Dimension Tables*/
+LIBNAME DW_DIM ODBC  DATASRC=DW_TC  SCHEMA=dim ;
+/*ETL Tables*/
+LIBNAME DW_ETLDW ODBC  DATASRC=DW_TC  SCHEMA=ETLDW ;
+/*FACT Tables*/
+LIBNAME DW_FACT ODBC  DATASRC=DW_TC  SCHEMA=fact ;
+/*Report Data Library*/
+LIBNAME RepData BASE "E:\DI_Scratch\Report Data" ;
+/*DI Scratch*/
+LIBNAME Scratch BASE "E:\DI_Scratch" ; 
+
+%let startdt = 20140501;
+
+/****************************************************************/
+/*************   Build Partner_Data *****************************/
+/****************************************************************/
+
+proc sql;
+   create table work.W5UX7P6Z as
+      select distinct HomeQutnRspe.RqstDtKey as DtKey length = 8,
+      HomeQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+      count(*) as Home_Response length = 8,
+      Sum(HomeQutnRspe.RspeDurtn) as Respnse_Time length = 8,
+      sum(HomeQutnRspe.AnnPrem) as Premium length = 8,
+      sum(HomeQutnRspe.QutnRspeRank) as rank length = 8
+      from DW_FACT.HomeQutnRspe
+	  where HomeQutnRspe.Rqstdtkey >= &startdt.
+      group by DtKey, ProdKey;
+quit;
+
+proc sql;
+   create table work.W5V0W0QI as
+      select distinct CarQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         CarQutnRspe.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         count(*) as N length = 8,
+         case when CarQutnRspe.QutnRspeRank =1 then "One"
+              when CarQutnRspe.QutnRspeRank =2 then "Two"
+              when CarQutnRspe.QutnRspeRank =3 then "Three"
+              else "Error"
+         end as RANK length = 8
+      from DW_FACT.CarQutnRspe
+	  where CarQutnRspe.Rqstdtkey >= &startdt.
+      and CarQutnRspe.RspeStsCd = "SUCCESS"
+      and CarQutnRspe.QutnRspeRank ^= 0
+      and CarQutnRspe.QutnRspeRank <= 3
+      group by ProdKey, RqstDtKey, RANK
+      order by ProdKey, RqstDtKey;
+quit;
+
+%let SYSLAST = %nrquote(work.W5V0W0QI); 
+%let _OUTPUT = %nrquote(work.W5V0WYBL); 
+%let Options = %nrquote();
+%let ProcOptions = %nrquote();
+%let ByColumns = ProdKey RqstDtKey;
+%let VarColumns = N;
+%let CopyColumns = ;
+%let IDColumn = RANK;
+%let IDLabelColumn = ;
+%let keep = ProdKey RqstDtKey One Two Three;
+
+%macro Transpose;
+  options mprint;
+  %if (%quote(&options) ne) %then %do; options &options; %end;  
+
+  proc transpose data=&SYSLAST out=&_OUTPUT &procOptions;
+    %if (%quote(&byColumns) ne) %then %do; by &byColumns; %end;
+    %if (%quote(&varColumns) ne) %then %do; var &varColumns; %end;
+    %if (%quote(&copyColumns) ne) %then %do; copy &copyColumns; %end;
+    %if (%quote(&idColumn) ne) %then %do; id &idColumn; %if (%quote(&idlabelColumn) ne) %then %do; idlabel &idlabelColumn; %end; %end;
+  run;
+%mend Transpose;
+%Transpose;
+
+proc sql;
+   create table work.W5V8NO16 as
+      select distinct HomeQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         	 HomeQutnRspe.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         	 sum(HomeQutnRspe.AnnPrem) as Click_Prem length = 8 format = 11.2 informat = 11.2 label = 'AnnPrem',
+         	 sum(HomeQutnRspe.QutnRspeRank) as Rank length = 8
+      from DW_FACT.HomeClick left join DW_FACT.HomeQutnRspe
+      on    (HomeClick.HQRspeKey = HomeQutnRspe.HQRspeKey)
+	  where HomeClick.ClickTypCd in ('ONLINE','PHONE')
+	  and HomeClick.ClickdtKey >= &startdt.
+      group by HomeQutnRspe.ProdId, HomeQutnRspe.RqstDtKey;
+quit;
+
+proc sql;
+   create table work.W5UX7P5Q as
+      select distinct CarQutnRspe.RqstDtKey as DTkey length = 8, 
+  			 CarQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         	 count(*) as Car_succ_Rspe length = 8,
+         	 Sum(CarQutnRspe.RspeDurtn) as Response_time length = 8 label = 'USED FOR AGGREGATIONS SHOULD NOT BE VIEWD RAW',
+         	 sum(CarQutnRspe.AnnPrem) as Premium length = 8 label = 'USED FOR AGGREGATIONS SHOULD NOT BE VIEWD RAW',
+         	 sum(CarQutnRspe.QutnRspeRank) as Rank length = 8 format = 6. informat = 6. label = 'QutnRspeRank'
+      from DW_FACT.CarQutnRspe
+	  where CarQutnRspe.Rqstdtkey >= &startdt.
+	  group by CarQutnRspe.RqstDtKey, CarQutnRspe.ProdKey;
+quit;
+
+proc sql;
+   create view work.W5V7Q1EM as
+      select CarQutnRspe.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         	 CarQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         	 Sum(CarQutnRspe.AnnPrem) as Click_Prem length = 8
+      from  DW_FACT.CarQutnRspe right join DW_FACT.CarClick
+      on (CarQutnRspe.RqstDtKey = CarClick.RqstDtKey)
+	  and CarClick.ClickTypCd in ('ONLINE','PHONE')
+      and CarQutnRspe.CQRqstKey = CarClick.CQRqstKey
+      and CarQutnRspe.CQRspeKey = CarClick.CQRspeKey
+	  and CarQutnRspe.Rqstdtkey >= &startdt.
+      group by CarQutnRspe.RqstDtKey, CarQutnRspe.ProdKey;
+quit;
+
+proc sql;
+   create table work.W5UX7P6B as
+      select distinct HomeQutnRqst.RqstDtKey as DtKey length = 8,
+         	 count(*) as Home_RQST length = 8
+      from  DW_DIM.HomeQutnRqst
+      where HomeQutnRqst.RqstStsCd = "COMPLETE"
+	  and HomeQutnRqst.Rqstdtkey >= &startdt.
+      group by DtKey;
+quit;
+
+proc sql;
+   create table work.W5UX7VOB as
+      select distinct
+         HomeQutnRspeReject.RqstDtKey as DtKey length = 8,
+         HomeQutnRspeReject.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         count(*) as RESP_N length = 8,
+         HomeQutnRspeReject.RspeStsCd length = 8 format = $8. informat = $8. label = 'RspeStsCd'
+      from DW_FACT.HomeQutnRspeReject
+	  where HomeQutnRspeReject.Rqstdtkey >= &startdt.
+      group by DtKey, ProdKey, HomeQutnRspeReject.RspeStsCd
+      order by HomeQutnRspeReject.RqstDtKey, HomeQutnRspeReject.ProdKey, HomeQutnRspeReject.RspeStsCd;
+quit;
+
+/*   proc datasets library=work nolist;*/
+/*      modify W5UX7VOB;*/
+/*         ic create not null (ProdKey);*/
+/*         ic create not null (RspeStsCd);*/
+/*   quit;*/
+   
+%let SYSLAST = %nrquote(work.W5UX7VOB); 
+%let _OUTPUT = %nrquote(work.W5UYUIKC); 
+%let Options = %nrquote();
+%let ProcOptions = %nrquote();
+%let ByColumns = DtKey ProdKey;
+%let VarColumns = RESP_N;
+%let CopyColumns = ;
+%let IDColumn = RspeStsCd;
+%let IDLabelColumn = ;
+%let keep = DtKey ProdKey DECLINED TIMEDOUT FILTERED FAILURE;
+
+%macro Transpose;
+  options mprint;
+
+  %if (%quote(&options) ne) %then %do; options &options; %end;  
+
+  proc transpose data=&SYSLAST out=&_OUTPUT &procOptions;
+    %if (%quote(&byColumns) ne) %then %do; by &byColumns; %end;
+    %if (%quote(&varColumns) ne) %then %do; var &varColumns; %end;
+    %if (%quote(&copyColumns) ne) %then %do; copy &copyColumns; %end;
+    %if (%quote(&idColumn) ne) %then %do; id &idColumn; %if (%quote(&idlabelColumn) ne) %then %do; idlabel &idlabelColumn; %end; %end;
+  run;
+%mend Transpose;
+%Transpose;
+
+proc sql;
+   create table work.W5V2K46I as
+      select distinct HomeClick.ClickTypCd length = 8 format = $8. informat = $8. label = 'ClickTypCd',
+        	 sum(case when HomeQutnRspe.RspeDtKey = HomeClick.ClickDtKey then 1 else 0 end) as Same_Day length = 8,
+         	 count(*) as Developed_Clicks length = 8,
+         	 HomeQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         HomeQutnRspe.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey'
+      from DW_FACT.HomeClick left join DW_FACT.HomeQutnRspe
+      on (HomeClick.HQRspeKey = HomeQutnRspe.HQRspeKey)
+	  where homeclick.clicktypcd in ('ONLINE','PHONE')
+	  and Homeclick.clickdtkey >= &startdt.
+      group by HomeClick.ClickTypCd, HomeQutnRspe.RqstDtKey, HomeQutnRspe.ProdKey
+      order by HomeQutnRspe.ProdKey, HomeQutnRspe.RqstDtKey;
+quit;
+
+%let SYSLAST = %nrquote(work.W5V2K46I); 
+%let _OUTPUT = %nrquote(work.W5V2Z2D5); 
+%let Options = %nrquote();
+%let ProcOptions = %nrquote();
+%let ByColumns = ProdKey RqstDtKey;
+%let VarColumns = Same_Day Developed_Clicks;
+%let CopyColumns = ;
+%let IDColumn = ClickTypCd;
+%let IDLabelColumn = ;
+%let keep = RqstDtKey _Name_ ProdKey Online Phone;
+
+%macro Transpose;
+  options mprint;
+  %if (%quote(&options) ne) %then %do; options &options; %end;  
+
+proc transpose data=&SYSLAST out=&_OUTPUT &procOptions;
+
+%if (%quote(&byColumns) ne) %then %do; by &byColumns; %end;
+    %if (%quote(&varColumns) ne) %then %do; var &varColumns; %end;
+    %if (%quote(&copyColumns) ne) %then %do; copy &copyColumns; %end;
+    %if (%quote(&idColumn) ne) %then %do; id &idColumn; %if (%quote(&idlabelColumn) ne) %then %do; idlabel &idlabelColumn; %end; %end;
+  run;
+%mend Transpose;
+%Transpose;
+
+data W5V2ZBRY W5V2ZBS8;
+set work.W5V2Z2D5;
+if _NAME_='Same_Day' then output W5V2ZBRY ;
+else output W5V2ZBS8;
+drop _name_;
+run;
+
+proc sql;
+   create table work.W5V30DE3 as
+      select distinct
+         case when W5V2ZBRY.ProdKey =. then W5V2ZBS8.ProdKey else W5V2ZBRY.ProdKey end as ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         W5V2ZBRY.Phone as SD_Phone length = 8,
+         W5V2ZBRY.Online as SD_Online length = 8,
+         case when W5V2ZBRY.RqstDtKey=. then W5V2ZBS8.RqstDtKey else W5V2ZBRY.RqstDtKey end as RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         W5V2ZBS8.Phone as DEV_Phone length = 8,
+         W5V2ZBS8.Online as DEV_Online length = 8,
+         W5V2ZBRY.Online length = 8,
+         W5V2ZBRY.Phone length = 8
+      from work.W5V2ZBRY full join work.W5V2ZBS8
+      on (W5V2ZBRY.RqstDtKey = W5V2ZBS8.RqstDtKey
+      and W5V2ZBRY.ProdKey = W5V2ZBS8.ProdKey);
+quit;
+
+proc sql;
+   create table work.W5UYI6TI as
+      select distinct
+         CarQutnRspeReject.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         CarQutnRspeReject.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         CarQutnRspeReject.RspeStsCd as RspeStat length = 8 format = $8. informat = $8. label = 'RspeStsCd',
+         count(*) as RSP_N length = 8
+      from DW_FACT.CarQutnRspeReject
+	  where CarQutnRspeReject.Rqstdtkey >= &startdt.
+      group by CarQutnRspeReject.RqstDtKey, CarQutnRspeReject.RspeStsCd, CarQutnRspeReject.ProdKey
+      order by ProdKey, RqstDtKey, RspeStat;
+quit;
+
+/*   proc datasets library=work nolist;*/
+/*      modify W5UYI6TI;*/
+/*         ic create not null (ProdKey);*/
+/*         ic create not null (RqstDtKey);*/
+/*         ic create not null (RspeStat);*/
+/*   quit;*/
+
+
+%let SYSLAST = %nrquote(work.W5UYI6TI); 
+%let _OUTPUT = %nrquote(work.W5UYIACM); 
+%let Options = %nrquote();
+%let ProcOptions = %nrquote();
+%let ByColumns = ProdKey RqstDtKey RspeStat;
+%let VarColumns = RSP_N;
+%let CopyColumns = ;
+%let IDColumn = RspeStat;
+%let IDLabelColumn = ;
+%let keep = ProdKey RqstDtKey FILTERED FAILURE DECLINED TIMEDOUT;
+
+%macro Transpose;
+  options mprint;
+
+  %if (%quote(&options) ne) %then %do; options &options; %end;  
+
+  proc transpose data=&SYSLAST out=&_OUTPUT &procOptions;
+    %if (%quote(&byColumns) ne) %then %do; by &byColumns; %end;
+    %if (%quote(&varColumns) ne) %then %do; var &varColumns; %end;
+    %if (%quote(&copyColumns) ne) %then %do; copy &copyColumns; %end;
+    %if (%quote(&idColumn) ne) %then %do; id &idColumn; %if (%quote(&idlabelColumn) ne) %then %do; idlabel &idlabelColumn; %end; %end;
+  run;
+%mend Transpose;
+%Transpose;
+
+proc sql;
+   create table work.W5UYIK5I as
+      select distinct
+         W5UYIACM.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         W5UYIACM.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         Sum(FILTERED) as FILTERED length = 8,
+         SUM(FAILURE) as FAILURE length = 8,
+         SUM(DECLINED) as DECLINED length = 8,
+         SUM(TIMEDOUT) as TIMEDOUT length = 8
+      from work.W5UYIACM
+      group by W5UYIACM.ProdKey, W5UYIACM.RqstDtKey;
+quit;
+
+/*   proc datasets library=work nolist;*/
+/*      modify W5UYIK5I;*/
+/*         ic create not null (ProdKey);*/
+/*         ic create not null (RqstDtKey);*/
+/*   quit;*/
+   
+proc sql;
+   create table work.W5V2HEZK as
+      select distinct
+         HomeQutnRspe.QutnRspeRank length = 8 format = 6. informat = 6. label = 'QutnRspeRank',
+         HomeQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         HomeQutnRspe.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         count(*) as rspe length = 8
+      from DW_FACT.HomeQutnRspe
+      where HomeQutnRspe.QutnRspeRank <= 3
+	  and HomeQutnRspe.Rqstdtkey >= &startdt.
+      group by HomeQutnRspe.ProdKey, HomeQutnRspe.RqstDtKey, HomeQutnRspe.QutnRspeRank
+      order by HomeQutnRspe.ProdKey, HomeQutnRspe.RqstDtKey;
+quit;
+
+%let SYSLAST = %nrquote(work.W5V2HEZK); 
+%let _OUTPUT = %nrquote(work.W5V2HUF7); 
+%let Options = %nrquote();
+%let ProcOptions = %nrquote(prefix=_);
+%let ByColumns = ProdKey RqstDtKey;
+%let VarColumns = rspe;
+%let CopyColumns = ;
+%let IDColumn = QutnRspeRank;
+%let IDLabelColumn = ;
+%let keep = RqstDtKey ProdKey _1 _2 _3;
+
+%macro Transpose;
+  options mprint;
+
+  %if (%quote(&options) ne) %then %do; options &options; %end;  
+
+  proc transpose data=&SYSLAST out=&_OUTPUT &procOptions;
+    %if (%quote(&byColumns) ne) %then %do; by &byColumns; %end;
+    %if (%quote(&varColumns) ne) %then %do; var &varColumns; %end;
+    %if (%quote(&copyColumns) ne) %then %do; copy &copyColumns; %end;
+    %if (%quote(&idColumn) ne) %then %do; id &idColumn; %if (%quote(&idlabelColumn) ne) %then %do; idlabel &idlabelColumn; %end; %end;
+  run;
+%mend Transpose;
+
+%Transpose;
+
+proc sql;
+   create table work.W5V2I2CW as
+      select distinct
+         HomeQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         HomeQutnRspe.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         HomeQutnRspe.QutnRspeRank length = 8 format = 6. informat = 6. label = 'QutnRspeRank',
+         Count(*) as N length = 8 
+	  from  DW_FACT.HomeQutnRspe right join DW_FACT.HomeClick
+      on (HomeQutnRspe.HQRspeKey = HomeClick.HQRspeKey)
+      where HomeQutnRspe.QutnRspeRank <= 3 
+	  and HomeClick.ClickTypCd in ('ONLINE','PHONE')
+	  and HomeQutnRspe.Rqstdtkey >= &startdt.
+	  group by HomeQutnRspe.QutnRspeRank, HomeQutnRspe.RqstDtKey, HomeQutnRspe.ProdKey
+      order by ProdKey, RqstDtKey, QutnRspeRank;
+quit;
+
+%let SYSLAST = %nrquote(work.W5V2I2CW); 
+%let _OUTPUT = %nrquote(work.W5V2JXM2); 
+%let Options = %nrquote();
+%let ProcOptions = %nrquote(prefix=_);
+%let ByColumns = ProdKey RqstDtKey;
+%let VarColumns = N;
+%let CopyColumns = ;
+%let IDColumn = QutnRspeRank;
+%let IDLabelColumn = ;
+%let keep = ProdKey RqstDtKey _1 _2 _3;
+
+%macro Transpose;
+  options mprint;
+
+  %if (%quote(&options) ne) %then %do; options &options; %end;  
+
+  proc transpose data=&SYSLAST out=&_OUTPUT &procOptions;
+    %if (%quote(&byColumns) ne) %then %do; by &byColumns; %end;
+    %if (%quote(&varColumns) ne) %then %do; var &varColumns; %end;
+    %if (%quote(&copyColumns) ne) %then %do; copy &copyColumns; %end;
+    %if (%quote(&idColumn) ne) %then %do; id &idColumn; %if (%quote(&idlabelColumn) ne) %then %do; idlabel &idlabelColumn; %end; %end;
+  run;
+%mend Transpose;
+%Transpose;
+
+proc sql;
+   create table work.W5V30LKJ as
+      select distinct
+         W5V30DE3.SD_Phone length = 8,
+         W5V30DE3.SD_Online length = 8,
+         W5V30DE3.DEV_Phone length = 8,
+         W5V30DE3.DEV_Online length = 8,
+         case when W5V30DE3.ProdKey =. then W5V2JXM2.ProdKey else W5V30DE3.ProdKey end 
+			  as ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         case when W5V30DE3.RqstDtKey = . then W5V2JXM2.RqstDtKey else W5V30DE3.RqstDtKey end 
+			  as RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         W5V2JXM2._1 length = 8,
+         W5V2JXM2._2 length = 8,
+         W5V2JXM2._3 length = 8
+      from work.W5V30DE3 full join work.W5V2JXM2
+      on (W5V30DE3.ProdKey = W5V2JXM2.ProdKey
+      and W5V30DE3.RqstDtKey = W5V2JXM2.RqstDtKey);
+quit;
+
+/* JR change - 12/02/14 */
+
+proc sql;
+create table ranges_home as
+select prodkey,min(dtkey) as min_date, max(dtkey) as max_date
+from W5UX7P6Z
+group by prodkey;
+quit;
+
+proc summary data=W5UX7P6Z nway completetypes;
+class dtkey prodkey;
+var home_response respnse_time premium rank;
+output out=W5UX7P6Z_ct(drop=_type_ _freq_)sum=;
+run;
+
+proc sql;
+create table W5UX7P6Z_dates as
+select a.*, b.min_Date, b.max_date
+from W5UX7P6Z_ct a, ranges_home b
+where a.prodkey = b.prodkey;
+quit;
+
+data W5UX7P6Z_B(drop=min_date max_date);
+set W5UX7P6Z_dates;
+if dtkey < min_date or dtkey > max_Date then delete;
+run;
+
+/* */
+
+proc sql;
+   create table work.W5UZYS4O as
+      select distinct
+         W5UX7P6B.Home_RQST as rqst length = 8,
+         W5UX7P6B.DtKey length = 8,
+         W5UX7P6Z.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         W5UX7P6Z.Home_Response as rspe length = 8,
+         W5UYUIKC.DECLINED length = 8,
+         W5UYUIKC.TIMEDOUT length = 8,
+         W5UYUIKC.FILTERED length = 8,
+         W5UYUIKC.FAILURE length = 8,
+         "Home" as Product length = 8,
+         W5V2HUF7._1 as Position_One length = 8,
+         W5V2HUF7._2 as Position_Two length = 8,
+         W5V2HUF7._3 as Position_Three length = 8,
+         W5V30LKJ.SD_Phone length = 8,
+         W5V30LKJ.SD_Online length = 8,
+         W5V30LKJ.DEV_Phone length = 8,
+         W5V30LKJ.DEV_Online length = 8,
+         W5V30LKJ._1 as Pos1_Click length = 8,
+         W5V30LKJ._2 as Pos2_Click length = 8,
+         W5V30LKJ._3 as Pos3_Click length = 8,
+         W5UX7P6Z.Premium length = 8,
+         W5UX7P6Z.Respnse_Time as Response_Time length = 8,
+         W5V8NO16.Click_Prem length = 8 format = 11.2 informat = 11.2 label = 'AnnPrem',
+         W5UX7P6Z.rank length = 8
+      from work.W5UX7P6B left join work.W5UX7P6Z_B as W5UX7P6Z
+            on (W5UX7P6B.DtKey = W5UX7P6Z.DtKey) left join work.W5UYUIKC
+            on (W5UX7P6B.DtKey = W5UYUIKC.DtKey
+			and W5UYUIKC.ProdKey = W5UX7P6Z.ProdKey) left join work.W5V2HUF7
+            on (W5UX7P6B.DtKey = W5V2HUF7.RqstDtKey
+			and W5UX7P6Z.ProdKey = W5V2HUF7.ProdKey) left join work.W5V30LKJ
+            on (W5UX7P6B.DtKey = W5V30LKJ.RqstDtKey
+			and W5UX7P6Z.ProdKey = W5V30LKJ.ProdKey) left join work.W5V8NO16
+            on (W5UX7P6Z.ProdKey = W5V8NO16.ProdKey
+			and W5UX7P6B.DtKey = W5V8NO16.RqstDtKey)
+      where W5UX7P6B.DtKey <> .
+      and W5UX7P6Z.ProdKey <> . ;
+quit;
+
+proc sql;
+   create table work.W5V1LJKB as
+      select distinct
+         CarQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         CarQutnRspe.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         CarClick.ClickTypCd length = 8 format = $8. informat = $8. label = 'ClickTypCd',
+         sum(case when CarQutnRspe.RspeDtKey = CarClick.ClickDtKey then 1 else 0 end) as SAME_DAY length = 8,
+         count(*) as Developed_Clicks length = 8
+      from DW_FACT.CarQutnRspe join DW_FACT.CarClick
+      on (CarQutnRspe.CQRspeKey = CarClick.CQRspeKey)
+	  where CarClick.ClickTypCd in ('ONLINE','PHONE')
+	  and CarQutnRspe.Rqstdtkey >= &startdt.
+      group by CarClick.RqstDtKey, CarQutnRspe.ProdKey, CarClick.ClickTypCd
+      order by CarQutnRspe.ProdKey, CarQutnRspe.RqstDtKey ;
+quit;
+
+%let SYSLAST = %nrquote(work.W5V1LJKB); 
+%let _OUTPUT = %nrquote(work.W5V24VIW); 
+%let Options = %nrquote();
+%let ProcOptions = %nrquote();
+%let ByColumns = ProdKey RqstDtKey;
+%let VarColumns = SAME_DAY Developed_Clicks;
+%let CopyColumns = ;
+%let IDColumn = ClickTypCd;
+%let IDLabelColumn = ;
+%let keep = ProdKey RqstDtKey Online Phone _NAME_;
+
+%macro Transpose;
+  options mprint;
+
+  %if (%quote(&options) ne) %then %do; options &options; %end;  
+
+  proc transpose data=&SYSLAST out=&_OUTPUT &procOptions;
+    %if (%quote(&byColumns) ne) %then %do; by &byColumns; %end;
+    %if (%quote(&varColumns) ne) %then %do; var &varColumns; %end;
+    %if (%quote(&copyColumns) ne) %then %do; copy &copyColumns; %end;
+    %if (%quote(&idColumn) ne) %then %do; id &idColumn; %if (%quote(&idlabelColumn) ne) %then %do; idlabel &idlabelColumn; %end; %end;
+  run;
+%mend Transpose;
+%Transpose;
+
+data w5v25jjg w5v25jjq;
+set work.W5V24VIW;
+if _NAME_='SAME_DAY' then output w5v25jjg ;
+else output w5v25jjq ;
+drop _name_;
+run;
+
+proc sql;
+   create table work.W5V25P95 as
+      select
+         W5V25JJG.Phone as SD_Phone length = 8,
+         W5V25JJG.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         W5V25JJG.Online as SD_Online length = 8,
+         W5V25JJG.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         W5V25JJQ.Online as Dev_Online length = 8,
+         W5V25JJQ.Phone as Dev_Phone length = 8
+      from work.W5V25JJQ full join work.W5V25JJG
+      on (W5V25JJQ.ProdKey = W5V25JJG.ProdKey
+      and W5V25JJQ.RqstDtKey = W5V25JJG.RqstDtKey ) ;
+quit;
+
+proc sql;
+   create table work.W5UX7OP4 as
+      select distinct
+         CarQutnRqst.RqstDtKey as DtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         count(*) as Car_RQST length = 8
+      from DW_DIM.CarQutnRqst
+      where CarQutnRqst.RqstStsCd = "COMPLETE"
+	  and CarQutnRqst.Rqstdtkey >= &startdt.
+      group by CarQutnRqst.RqstDtKey ;
+quit;
+
+proc sql;
+   create table work.W5V1LTH6 as
+      select distinct
+         CarQutnRspe.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         CarQutnRspe.QutnRspeRank length = 8 format = 6. informat = 6. label = 'QutnRspeRank',
+         count(*) as N length = 8,
+         CarClick.RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey'
+      from DW_FACT.CarClick left join DW_FACT.CarQutnRspe
+      on (CarClick.CQRspeKey = CarQutnRspe.CQRspeKey)
+      where CarQutnRspe.QutnRspeRank <= 3
+	  and CarClick.ClickTypCd in ('ONLINE','PHONE')
+      and CarQutnRspe.QutnRspeRank ^= 0
+	  and CarQutnRspe.Rqstdtkey >= &startdt.
+      group by CarClick.RqstDtKey, CarQutnRspe.QutnRspeRank, CarQutnRspe.ProdKey
+      order by ProdKey, RqstDtKey;
+quit;
+
+%let SYSLAST = %nrquote(work.W5V1LTH6); 
+%let _OUTPUT = %nrquote(work.W5V1M61Y); 
+%let Options = %nrquote();
+%let ProcOptions = %nrquote(prefix=_);
+%let ByColumns = ProdKey RqstDtKey;
+%let VarColumns = N;
+%let CopyColumns = ;
+%let IDColumn = QutnRspeRank;
+%let IDLabelColumn = ;
+%let keep = ProdKey RqstDtKey _1 _2 _3;
+
+%macro Transpose;
+  options mprint;
+
+  %if (%quote(&options) ne) %then %do; options &options; %end;  
+
+  proc transpose data=&SYSLAST out=&_OUTPUT &procOptions;
+    %if (%quote(&byColumns) ne) %then %do; by &byColumns; %end;
+    %if (%quote(&varColumns) ne) %then %do; var &varColumns; %end;
+    %if (%quote(&copyColumns) ne) %then %do; copy &copyColumns; %end;
+    %if (%quote(&idColumn) ne) %then %do; id &idColumn; %if (%quote(&idlabelColumn) ne) %then %do; idlabel &idlabelColumn; %end; %end;
+  run;
+%mend Transpose;
+%Transpose;
+
+proc sql;
+   create table work.W5V25UN3 as
+      select distinct
+         W5V25P95.SD_Phone length = 8,
+         W5V25P95.SD_Online length = 8,
+         W5V25P95.Dev_Online length = 8,
+         W5V25P95.Dev_Phone length = 8,
+         case when W5V25P95.ProdKey = . then W5V1M61Y.ProdKey else W5V25P95.ProdKey end 
+			  as ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         case when W5V25P95.RqstDtKey = . then W5V1M61Y.RqstDtKey else W5V25P95.RqstDtKey end 
+			  as RqstDtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         W5V1M61Y._1 as POS1_Click length = 8,
+         W5V1M61Y._2 as POS2_Click length = 8,
+         W5V1M61Y._3 as POS3_Click length = 8
+      from work.W5V25P95 full join work.W5V1M61Y
+      on (W5V25P95.ProdKey = W5V1M61Y.ProdKey
+      and W5V25P95.RqstDtKey = W5V1M61Y.RqstDtKey);
+quit;
+
+/* JR Change - 12/02/14 */
+
+proc sql;
+create table ranges_car as
+select prodkey,min(dtkey) as min_date, max(dtkey) as max_date
+from W5UX7P5Q
+group by prodkey;
+quit;
+
+proc summary data=W5UX7P5Q nway completetypes;
+class dtkey prodkey;
+var car_succ_rspe response_time premium rank;
+output out=W5UX7P5Q_ct(drop=_type_ _freq_)sum=;
+run;
+
+proc sql;
+create table W5UX7P5Q_dates as
+select a.*, b.min_Date, b.max_date
+from W5UX7P5Q_ct a, ranges_car b
+where a.prodkey = b.prodkey;
+quit;
+
+data W5UX7P5Q_B(drop=min_date max_date);
+set W5UX7P5Q_dates;
+if dtkey < min_date or dtkey > max_Date then delete;
+run;
+
+/* */
+
+proc sql;
+   create table work.W5UYGO61 as
+      select distinct
+         W5UX7P5Q.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         W5UX7OP4.DtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         W5UX7OP4.Car_RQST as Rqst length = 8,
+         W5UX7P5Q.Car_succ_Rspe as Rspe length = 8,
+         W5UYIK5I.FILTERED length = 8,
+         W5UYIK5I.FAILURE length = 8,
+         W5UYIK5I.DECLINED length = 8,
+         W5UYIK5I.TIMEDOUT length = 8,
+         "Car" as Product length = 8,
+         W5UX7P5Q.Response_time length = 8,
+         W5V0WYBL.One as Position_One length = 8,
+         W5V0WYBL.Two as Position_Two length = 8,
+         W5V0WYBL.Three as Position_Three length = 8,
+         W5V25UN3.SD_Online length = 8,
+         W5V25UN3.Dev_Online length = 8,
+         W5V25UN3.SD_Phone length = 8,
+         W5V25UN3.Dev_Phone length = 8,
+         W5V25UN3.POS1_Click length = 8,
+         W5V25UN3.POS2_Click length = 8,
+         W5V25UN3.POS3_Click length = 8,
+         W5UX7P5Q.Premium length = 8 label = 'USED FOR AGGREGATIONS SHOULD NOT BE VIEWD RAW',
+         W5V7Q1EM.Click_Prem length = 8,
+         W5UX7P5Q.Rank length = 8 format = 6. informat = 6. label = 'QutnRspeRank'
+      from  work.W5UX7OP4 left join work.W5UX7P5Q_B as W5UX7P5Q
+      on (W5UX7OP4.DtKey = W5UX7P5Q.DTkey) left join work.W5UYIK5I
+      on (W5UX7P5Q.ProdKey = W5UYIK5I.ProdKey
+	  and W5UX7OP4.DtKey = W5UYIK5I.RqstDtKey) left join work.W5V0WYBL
+      on (W5UX7OP4.DtKey = W5V0WYBL.RqstDtKey
+	  and W5UX7P5Q.ProdKey = W5V0WYBL.ProdKey) left join work.W5V25UN3
+      on (W5UX7P5Q.ProdKey = W5V25UN3.ProdKey
+	  and W5UX7OP4.DtKey = W5V25UN3.RqstDtKey) left join work.W5V7Q1EM
+      on (W5UX7OP4.DtKey = W5V7Q1EM.RqstDtKey
+	  and W5UX7P5Q.ProdKey = W5V7Q1EM.ProdKey)
+      where W5UX7OP4.DtKey NE .
+      and W5UX7P5Q.ProdKey ^= .;
+quit;
+
+proc sql; 
+   create view work.W67BDVZE as 
+      select Response_Time as Response_time length = 8,
+             Rank length = 8,
+             Product length = 8,
+             Position_One length = 8,
+             SD_Online length = 8,
+             DEV_Online length = 8,
+             rqst as Rqst length = 8,
+             Pos1_Click as POS1_Click length = 8,
+             rspe length = 8,
+             TIMEDOUT length = 8,
+             FAILURE length = 8,
+             ProdKey length = 8,
+             DEV_Phone length = 8,
+             DECLINED length = 8,
+             Position_Three length = 8,
+             SD_Phone length = 8,
+             FILTERED length = 8,
+             DtKey length = 8 format = 11. informat = 11.,
+             Position_Two length = 8,
+             Pos3_Click as POS3_Click length = 8,
+             Pos2_Click as POS2_Click length = 8,
+             Premium length = 8,
+             Click_Prem length = 8
+         from work.W5UZYS4O; 
+quit;
+
+proc sql; 
+   create view work.W67BDVZO as 
+      select Response_time length = 8,
+             Rank length = 8,
+             Product length = 8,
+             Position_One length = 8,
+             SD_Online length = 8,
+             Dev_Online as DEV_Online length = 8,
+             Rqst length = 8,
+             POS1_Click length = 8,
+             Rspe as rspe length = 8,
+             TIMEDOUT length = 8,
+             FAILURE length = 8,
+             ProdKey length = 8,
+             Dev_Phone as DEV_Phone length = 8,
+             DECLINED length = 8,
+             Position_Three length = 8,
+             SD_Phone length = 8,
+             FILTERED length = 8,
+             DtKey length = 8,
+             Position_Two length = 8,
+             POS3_Click length = 8,
+             POS2_Click length = 8,
+             Premium length = 8,
+             Click_Prem length = 8
+         from work.W5UYGO61; 
+quit;
+
+data work.W5V0KIW8;
+   set work.W67BDVZE  work.W67BDVZO;
+   keep Response_time Rank Product Position_One SD_Online DEV_Online Rqst POS1_Click rspe TIMEDOUT 
+		FAILURE ProdKey DEV_Phone DECLINED Position_Three SD_Phone FILTERED DtKey  
+	 	Position_Two POS3_Click POS2_Click Premium Click_Prem; 
+run;
+
+LIBNAME Dev     'E:\DI_Scratch\test pp';
+LIBNAME Krust   'E:\DI_Scratch\Krust';
+
+/* remove data which will be reloaded */
+data dev.partner_data;
+set dev.partner_Data;
+where dtkey < &startdt.;
+run;
+
+libname MOE odbc datasrc=moe schema=dbo;
+
+proc sql;
+create table ReportingNames as 
+select 
+	prodkey, 
+	(select max(reportingname) from moe.partners c where c.prodid in 
+		(select max(d.masterprodid) from moe.partners d where d.prodid=a.prodid and d.currentrow)
+		) as ProdName,
+	prodid 
+from dw_dim.prod a
+;
+quit;
+
+proc sql;
+   create table PARTNER_DATA as
+      select distinct
+         W5V0KIW8.Product length = 8,
+         W5V0KIW8.ProdKey length = 8 format = 11. informat = 11. label = 'ProdKey',
+         W5V0KIW8.DtKey length = 8 format = 11. informat = 11. label = 'RqstDtKey',
+         Date.DayNumOfMonth length = 8 format = 4. informat = 4. label = 'DayNumOfMonth',
+         Date.MonthNameOfYear length = 10 format = $10. informat = $10. label = 'MonthNameOfYear',
+         Date.YearNum length = 8 format = 6. informat = 6. label = 'YearNum',
+/*         case when upcase(Prod.ProdName) = 'SAGA' then 'Saga' */
+/*			  when upcase(Prod.ProdName) = "ENDSLEIGH HOME 2" then 'Endsleigh'*/
+/*			  else prod.prodname*/
+/*			  end as*/
+		 prod.Prodname length = 30 format = $30. informat = $30. label = 'ProdName',
+         W5V0KIW8.Rqst length = 8,
+         W5V0KIW8.rspe length = 8,
+         case when W5V0KIW8.Position_One =. then 0 else W5V0KIW8.Position_One end as Position_One length = 8,
+         case when W5V0KIW8.Position_Two=.  then 0 else W5V0KIW8.Position_Two end as Position_Two length = 8,
+         case when W5V0KIW8.Position_Three=. then 0 else W5V0KIW8.Position_Three end as Position_Three length = 8,
+         case when W5V0KIW8.SD_Online=. then 0 else W5V0KIW8.SD_Online end as SD_Online length = 8,
+         case when W5V0KIW8.SD_Phone=. then 0 else W5V0KIW8.SD_Phone end as SD_Phone length = 8,
+         case when W5V0KIW8.POS1_Click =. then 0 else W5V0KIW8.POS1_Click end as Pos1_Click length = 8,
+         case when W5V0KIW8.POS2_Click=. then 0 else W5V0KIW8.POS2_Click end as Pos2_Click length = 8,
+         case when W5V0KIW8.POS3_Click=. then 0 else W5V0KIW8.POS3_Click  end as Pos3_Click length = 8,
+         case when W5V0KIW8.TIMEDOUT =. then 0 else W5V0KIW8.TIMEDOUT end as TIMEDOUT length = 8,
+         case when W5V0KIW8.FILTERED=. then 0 else W5V0KIW8.FILTERED end as FILTERED length = 8,         
+		 case when W5V0KIW8.FAILURE=. then 0 else W5V0KIW8.FAILURE end as FAILURE length = 8,
+         case when W5V0KIW8.DECLINED=. then 0 else W5V0KIW8.DECLINED end as DECLINED length = 8,
+         case when W5V0KIW8.DEV_Phone=. then 0 else W5V0KIW8.DEV_Phone end as Dev_Phone length = 8,
+         case when W5V0KIW8.DEV_Online=. then 0 else W5V0KIW8.DEV_Online end as Dev_Online length = 8,
+         W5V0KIW8.Response_time length = 8,
+/*         Prod.SubPtnrKey length = 8 format = 11. informat = 11. label = 'SubPtnrKey',*/
+         W5V0KIW8.Premium as Premiun length = 8,
+         W5V0KIW8.Click_Prem as Click_Premium length = 8,
+         W5V0KIW8.Rank length = 8,
+         input(put(Date.DtKey,8.),yymmdd8.) - (Date.DayNumOfWeek - 1) as Week length = 8 format = date9.,
+         input(put(Date.DtKey,8.),yymmdd8.) as Date length = 8 format = date9.
+      from work.W5V0KIW8 left join DW_DIM.Date on (W5V0KIW8.DtKey = Date.DtKey) 
+left join ReportingNames as prod
+      on (W5V0KIW8.ProdKey = Prod.ProdKey)
+	  where W5V0KIW8.dtkey >= &startdt.
+
+      group by Date.WeekNumOfYear, Date.YearNum ;
+quit;
+
+data Dev.PARTNER_DATA;
+set Dev.PARTNER_DATA
+	work.PARTNER_DATA;
+proc sort;
+	by dtkey;
+run;
