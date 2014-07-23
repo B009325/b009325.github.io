@@ -7,7 +7,141 @@
 <pre>
 <code>
 
+/*email of partner packs*/
+%let dir=D:\Partner_Packs\Dev;
+%macro outmail(files,contacts);
+	filename outbox email ;
+	data _null_;
+	file outbox 
+	to=(&contacts.)
+	from="tcdatains@i.tescobank.com"
+	subject="Tesco Compare MI - Car"
+	attach=(&files.);
+	put "Please find attached this week's Tesco Compare MI Pack.";
+	put ;
+	put "If you have any queries or concerns please contact your relationship manager in the first instance.";
+	put ;
+	put "Regards";
+	put ;
+	put "Tesco Compare Data & Insight Team";
+	put "Data & Insight | Tesco Compare | EHQ | 2 South Gyle Crescent | Edinburgh | EH12 9FQ"; 
+	put "tcdatains@tescobank.com";
+	run;
+%mend outmail;
 
+
+/*AA*/
+%outmail("&dir.\Tesco Compare Dashboard - AA.zip","Alison.Crossley@TheAA.com" "Claudia.tinnirello@theaa.com");
+/*Budget*/
+%outmail("&dir.\Tesco Compare Dashboard - Budget.zip","eCommerce.Support@bglgroup.co.uk" "paul.chapman@bglgroup.co.uk" "Tamasine.Foot@bglgroup.co.uk" "junctionMI@bglgroup.co.uk");
+/*The Co-operative*/
+%outmail("&dir.\Tesco Compare Dashboard - The Co-operative.zip","eCommerce.Support@bglgroup.co.uk" "alan.dormand@bglgroup.co.uk" "paul.chapman@bglgroup.co.uk" "Tamasine.Foot@bglgroup.co.uk" "junctionMI@bglgroup.co.uk" "Andrew.McKenna@cfs.coop");
+/*CIS*/ 
+%outmail("&dir.\Tesco Compare Dashboard - CIS.zip","graham.ward-lush@cfs.coop");
+/*RAC*/
+%outmail("&dir.\Tesco Compare Dashboard - RAC.zip","rpaull@rac.co.uk");
+/*esure*/
+%outmail("&dir.\Tesco Compare Dashboard - esure.zip","Nikki.Sellers@esure.com" "Mark.Fell@esure.com");
+/*ecar*/
+%outmail("&dir.\Tesco Compare Dashboard - ecar.zip","ecommercemiteam@brightsidegroup.co.uk");
+/*Kwik-Fit*/
+%outmail("&dir.\Tesco Compare Dashboard - KwikFit.zip","janice.cuthbertson@kfis.co.uk" "Tony.Way@ageas.co.uk" "paul.tammaro@kfis.co.uk" "jamie.mccoy@kfis.co.uk" "Lorraine.cooper@kfis.co.uk" "centraladmin@kfis.co.uk");
+/*More Than*/
+%outmail("&dir.\Tesco Compare Dashboard - More Than.zip","Partner.Data@uk.rsagroup.com" "Rose.howarth@uk.rsagroup.com" "CENTRAL.MISUPPORT@UK.RSAGROUP.COM" "gareth.davies@uk.rsagroup.com");
+/*Swinton*/
+%outmail("&dir.\Tesco Compare Dashboard - Swinton.zip", "Aggregator_Reports@swinton.co.uk");
+/*Outright*/
+%outmail("&dir.\Tesco Compare Dashboard - Autodirect.zip","Andrew.Berrow@ukais.co.uk" "andrew.cartin@ukais.co.uk" "Tony.Way@ageas.co.uk");
+/*Admiral*/
+%outmail("&dir.\Tesco Compare Dashboard - Admiral.zip","OnlineMediaReport@aisl.uk.com");
+/*Endsleigh*/
+%outmail("&dir.\Tesco Compare Dashboard - Endsleigh.zip","James.Purcell@endsleigh.co.uk");
+/*RBSi*/
+%outmail("&dir.\Tesco Compare Dashboard - RBSI.zip" "&dir.\Tesco Compare Dashboard - RBSI.zip" "&dir.\Tesco Compare Dashboard - UKI.zip","FM-012218@rbos.co.uk");
+/*TPF*/
+%outmail("&dir.\Tesco Compare Dashboard - TPF.zip","Mark.Airey@tescobank.com" "Gerry.meechan@tescobank.com" "Jen.cooke@tescobank.com" "Aaron.b.matthews@tescobank.com" "Rachel.cutler@tescobank.com" "Kirsti.di-ciacca@tescobank.com" "Tom.Butcher@tescobank.com" "Tom.Bailey@tescobank.com" "Gordon.barrie@tescobank.com" "elaine.kerrigan@tescobank.com" "sam.baines@tescobank.com" "priscilla.butterfield@tescobank.com" "jennifer.wilson@tescobank.com" "Stephen.R.Robertson@tescobank.com" "Peter.Brownlie@i.tescobank.com" "TBGIMgmtInfo@i.tescobank.com" "graham.tidd@i.tescobank.com" "Javed.Khan@i.tescobank.com" "TBaggregatorteam@i.tescobank.com");
+/*TB Box */
+%outmail("&dir.\Tesco Compare Dashboard - Tesco Bank Box.zip","Gerry.meechan@i.tescobank.com" "Tom.Bailey@i.tescobank.com" "jamie.elliot@i.tescobank.com" "Gordon.barrie@i.tescobank.com" "Richard.trebble@insurethebox.com" "Dan.rees@insurethebox.com" "TBaggregatorteam@i.tescobank.com");
+/*Devitt*/
+%outmail("&dir.\Tesco Compare Dashboard - Devitt.zip","jacqui.doughty@devittinsurance.com" "william.hughes@devittinsurance.com" "robert.evans@devittinsurance.com" "tony.chapman@devittinsurance.com" "nigel.meyer@devittinsurance.com");
+/*Direct Choice*/
+%outmail("&dir.\Tesco Compare Dashboard - Direct Choice.zip","Matthew.Brown@saga.co.uk" "Keith.Ward@saga.co.uk" "Emma.Neal@saga.co.uk" "Christopher.Elson@saga.co.uk");
+/*A&A*/
+%outmail("&dir.\Tesco Compare Dashboard - ESI.zip","john.tansley@taagl.com" "Stefan.Rance@taagl.com" "charlotte.hanna@taagl.com" "Rob.Overfield@taagl.com");
+/*A&A*/
+%outmail("&dir.\Tesco Compare Dashboard - Quotea.zip","robin.mundy@taagl.com" "Stefan.Rance@taagl.com" "charlotte.hanna@taagl.com" "Rob.Overfield@taagl.com");
+/*A&A*/
+%outmail("&dir.\Tesco Compare Dashboard - Broker King.zip","Stefan.Rance@taagl.com" "charlotte.hanna@taagl.com" "Rob.Overfield@taagl.com");
+/*Express*/
+%outmail("&dir.\Tesco Compare Dashboard - Express.zip", "Tony.Way@ageas.co.uk" "janice.cuthbertson@kfis.co.uk" "andrew.drummond@kfis.co.uk" "paul.tammaro@kfis.co.uk" "jamie.mccoy@kfis.co.uk" "centraladmin@kfis.co.uk");
+/*Hastings*/
+%outmail("&dir.\Tesco Compare Dashboard - Hastings.zip", "aggmi@hastingsdirect.com" "aggmi@renewinsurance.com" "markdrinkwater@hastingsdirect.com" "JodeeSmithers@hastingsdirect.com");
+/*Hastings Smart Miles*/
+%outmail("&dir.\Tesco Compare Dashboard - Hastings Smart Miles.zip", "MarkDrinkwater@Hastingsdirect.com" "Alison.Astell@igo4.com" "BenTomasetti@hastingsdirect.com" "LouiseWilliams@hastingsdirect.com" "JodeeSmithers@hastingsdirect.com" "Richie.Brown@igo4.com" "Sally.Bradshaw@igo4.com");
+/*The Policy Shop*/
+%outmail("&dir.\Tesco Compare Dashboard - The Policy Shop.zip","neil@thepolicyshop.co.uk" "ryan.byrne@thepolicyshop.co.uk");
+/*Autonet*/
+%outmail("&dir.\Tesco Compare Dashboard - Autonet.zip","jeff.mountford@autonetinsurance.co.uk" "stuart.scott@autonetinsurance.co.uk" "businessanalysis@autonetinsurance.co.uk");
+/*Equity*/
+%outmail("&dir.\Tesco Compare Dashboard - Equity.zip","neil.mccallum@equitygroup.co.uk" "Jacki.mosey@equitygroup.co.uk" "Richard.Simpson@equitygroup.co.uk");
+/*First*/
+%outmail("&dir.\Tesco Compare Dashboard - First.zip","stuart.whalley@freshinsurance.co.uk" "spencer.street@first.co.uk" );
+/*Go Skippy*/
+%outmail("&dir.\Tesco Compare Dashboard - Go Skippy.zip","janette.yost@goskippy.com" "mark.victory@rock-services.co.uk");
+/*InsureYourMotor*/
+%outmail("&dir.\Tesco Compare Dashboard - InsureYourMotor.zip", "martyn.hurley@insureclub.co.uk" "Rob.Overfield@taagl.com" "Charlotte.hanna@taagl.com" "stefan.rance@taagl.com" "dan.needs@hyperformanceinsurance.co.uk" 
+"matthew.roberts@hyperformanceinsurance.co.uk");
+/*Ladybird*/
+%outmail("&dir.\Tesco Compare Dashboard - Ladybird.zip","stuart.whalley@freshinsurance.co.uk");
+/*One Call*/
+%outmail("&dir.\Tesco Compare Dashboard - One Call.zip","nik.springthorpe@onecalldirect.co.uk" "john@onecalldirect.co.uk" "oliver@onecalldirect.co.uk" "Nathan.Robinson@onecalldirect.co.uk");
+/*Performance Direct*/
+%outmail("&dir.\Tesco Compare Dashboard - Performance Direct.zip","matthew@grove-dean.co.uk");
+/*Sureterm*/
+%outmail("&dir.\Tesco Compare Dashboard - Sureterm.zip","Vicki.Cheal@BDML.co.uk" "Andrew.Evanson@lancasterinsurance.co.uk" "Kevin.Newton@lancasterinsurance.co.uk" "Katie.Chandler@lancasterinsurance.co.uk");
+/*Saga*/
+%outmail("&dir.\Tesco Compare Dashboard - Saga.zip","Matthew.Brown@saga.co.uk" "Keith.Ward@saga.co.uk" "leena.siwa@saga.co.uk" "Emma.Neal@saga.co.uk" "Christopher.Elson@saga.co.uk" "Ricky.Abate@saga.co.uk" "Tara.Kelland@saga.co.uk"); 
+ /*IGO4*/
+%outmail("&dir.\Tesco Compare Dashboard - IGO4.zip","louise.walker@igo4.com" "Alison.Astell@igo4.com" "Richie.brown@igo4.com" "Tom.cooper@igo4.com" "sally.bradshaw@igo4.com");
+/*Bell*/
+%outmail("&dir.\Tesco Compare Dashboard - Bell.zip","OnlineMediaReport@aisl.uk.com");
+/*Elephant*/
+%outmail("&dir.\Tesco Compare Dashboard - Elephant.zip","OnlineMediaReport@aisl.uk.com");
+/*Lloyds and Halifax*/
+%outmail("&dir.\Tesco Compare Dashboard - LloydsHalifax.zip", "eCommerce.Support@bglgroup.co.uk" "alan.dormand@bglgroup.co.uk" "paul.chapman@bglgroup.co.uk" "Tamasine.Foot@bglgroup.co.uk" "Noreen.hoye@lloydstsb.co.uk" "junctionMI@bglgroup.co.uk" "Noreen.Hoye@LloydsTSB.co.uk");
+/*Swift Cover*/
+%outmail("&dir.\Tesco Compare Dashboard - Swiftcover.zip", "Darius.Lau@swiftcover.com" "Chris.Wilkins@swiftcover.com");
+/*Insurance Factory*/
+%outmail("&dir.\Tesco Compare Dashboard - Insurance Factory.zip","carl.mannion@insurancefactory.co.uk" "brian.clarke@insurancefactory.co.uk");
+/*Chaucer Direct*/
+%outmail("&dir.\Tesco Compare Dashboard - Chaucer.zip","Derek.benjamin@chaucerdirect.co.uk" "Paul.baxter@chaucerdirect.co.uk" "Michael.warren@chaucerplc.com" "Andrew.southgate@chaucerplc.com" "Simon.fuller@chaucerplc.com");
+/*Collingwood*/
+%outmail("&dir.\Tesco Compare Dashboard - Collingwood.zip","darren.bailey@collingwood.co.uk" "PartnerMI@collingwood.co.uk");
+/*Key Worker Insure*/
+%outmail("&dir.\Tesco Compare Dashboard - Key Worker Insure.zip","john.tansley@keyworkerinsure.com");
+
+
+/* Compare team email confirmation */
+FILENAME output EMAIL
+SUBJECT="Car Partner Pack weekly distribution complete - New Packs"
+	from="tcdatains@i.tescobank.com"
+
+TO= ("05_TB_TESCOCOMPAREMITEAM@uk.tesco.com" "John.Blevins@i.tescobank.com"  "Gillian.McInnes@i.tescobank.com");
+/* Sending email */;
+DATA _NULL_;
+FILE output;
+PUT "All,";
+put;
+PUT "The Partner packs for Car have now been distributed to partners";
+put;
+put "Regards";
+put ;
+put "Tesco Compare Data & Insight Team";
+put "Data & Insight | Tesco Compare | EHQ | 2 South Gyle Crescent | Edinburgh | EH12 9FQ"; 
+put ;
+put "tcdatains@i.tescobank.com";
+
+RUN;
 
 </code>
 </pre>
