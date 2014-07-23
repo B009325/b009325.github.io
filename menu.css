@@ -22,7 +22,7 @@
 /* menu::base */
 div#menu {
     height:41px;
-    background:url(images/main-bg.png) repeat-x;
+    background:url("https://cloud.githubusercontent.com/assets/8235158/3670597/d717282e-1245-11e4-9a7c-75e032a14270.png") repeat-x;
 }
 
 div#menu ul {
