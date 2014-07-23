@@ -83,7 +83,7 @@ div#menu a {
 div#menu span {
     margin-top: 5px;
 }/**@replace#1*/
-div#menu li { background: url(images/main-delimiter.png) 98% 4px no-repeat; }
+div#menu li { background: url("https://cloud.githubusercontent.com/assets/8235158/3670595/d46ac662-1245-11e4-953d-f3a9c47af0a2.png") 98% 4px no-repeat; }
 div#menu li.last { background: none; }
 
 /* menu::level2 */
