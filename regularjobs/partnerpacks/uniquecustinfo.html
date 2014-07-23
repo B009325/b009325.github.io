@@ -7,6 +7,256 @@
 <pre>
 <code>
 
+/************************************************************
+**    Unique customer Quotes section                       **
+**    Only required for Monthly & YEarly frequencies       **
+**    Yearly will be unique monthly summed up 12 months    **
+************************************************************/
+
+proc sql;
+   create table work.Car_unique_Stg as
+      select a.RqstDtKey, a.ProdKey,a.CustId
+	  from  Dev.CarQutnRspe_less_r a
+      where a.RqstDtKey > &startdt.;
+quit;
+
+data car_unique_stg2;
+set car_unique_stg;
+date = input(put(rqstdtkey,8.),yymmdd8.);
+monthyear = mdy(month(date),01,year(date));
+yearnum = year(date);
+wkday = weekday(date)-1+(weekday(date)=1)*7;
+week = date - (wkday-1);
+format date monthyear week date9.;
+run;
+
+proc sql;
+create table prods as 
+select 
+	prodkey, 
+	(select max(reportingname) from moe.partners c where c.prodid in 
+		(select max(d.masterprodid) from moe.partners d where d.prodid=a.prodid and d.currentrow)
+		) as ProdName
+from dw_dim.prod a
+;
+quit;
+
+proc sql;
+create table car_unique_stg3 as
+select a.*, b.prodname
+from car_unique_stg2 a, prods b
+where a.prodkey = b.prodkey;
+quit;
+
+proc sql;
+   create table work.Home_unique_Stg as
+      select a.RqstDtKey, a.ProdKey,a.CustId
+	  from  DW_FACT.HomeQutnRspe a
+      where a.RqstDtKey > &startdt.;
+quit;
+
+data Home_unique_stg2;
+set Home_unique_stg;
+date = input(put(rqstdtkey,8.),yymmdd8.);
+monthyear = mdy(month(date),01,year(date));
+yearnum = year(date);
+wkday = weekday(date)-1+(weekday(date)=1)*7;
+week = date - (wkday-1);
+format date monthyear week date9.;
+run;
+
+proc sql;
+create table home_unique_stg3 as
+select a.*, b.prodname
+from home_unique_stg2 a, prods b
+where a.prodkey = b.prodkey;
+quit;
+
+%macro unique_split(prod,freq,freqname);
+
+proc sql;
+create table &prod._&freq._unique_stg as
+select distinct &freqname, prodname, count(distinct(custid)) as unique_quotes
+from work.&prod._unique_stg3
+group by &freqname, prodname;
+quit;
+
+data &prod._monthly_unique_stg;
+set &prod._monthly_unique_stg;
+year = year(monthyear);
+run;
+
+%mend unique_split;
+
+
+%unique_split(car,monthly,monthyear);
+%unique_split(home,monthly,monthyear);
+
+%macro merge_month_year(prod);
+
+data dev.&prod._monthly_unique_cust;
+set dev.&prod._monthly_unique_cust;
+where monthyear < input(put(&startdt.,8.),yymmdd8.);
+proc sort;
+by monthyear;
+run;
+
+proc sort data=work.&prod._monthly_unique_stg;
+by monthyear;
+run;
+
+data dev.&prod._monthly_unique_cust;
+set dev.&prod._monthly_unique_cust
+	work.&prod._monthly_unique_stg;
+proc sort;
+by monthyear;
+run;
+
+%mend merge_month_year;
+
+%merge_month_year(car);
+%merge_month_year(home);
+
+%macro yearly_summ(prod);
+
+proc summary data=dev.&prod._monthly_unique_cust nway;
+class prodname year;
+var unique_quotes;
+output out=dev.&prod._yearly_unique_cust(drop=_type_ _freq_)sum=;
+run;
+
+%mend yearly_summ;
+
+%yearly_summ(car);
+%yearly_summ(home);
+
+/************************************************************
+**    Unique customer Clicks section                       **
+**    Only required for Monthly & YEarly frequencies       **
+**    Yearly will be unique monthly summed up 12 months    **
+************************************************************/
+
+%macro unique_clicks(prod,init);
+
+proc sql;
+   create table work.&prod._click_Stg as
+      select a.ClickDtKey, a.ClickTypCd, b.prodkey, b.custid
+	  from  DW_FACT.&prod.Click a, DW_FACT.&prod.qutnrspe b
+      where a.&init.QRspeKey = b.&init.Qrspekey
+	  and a.clickdtkey > &startdt.;
+quit;
+
+data &prod._click_stg2;
+set &prod._click_stg;
+date = input(put(clickdtkey,8.),yymmdd8.);
+monthyear = mdy(month(date),01,year(date));
+yearnum = year(date);
+wkday = weekday(date)-1+(weekday(date)=1)*7;
+week = date - (wkday-1);
+format date monthyear week date9.;
+run;
+
+proc sql;
+create table &prod._click_stg3 as
+select a.*, b.prodname
+from &prod._click_stg2 a, prods b
+where a.prodkey = b.prodkey;
+quit;
+
+proc sql;
+create table &prod._click_unique_month as
+select monthyear, prodname, count(distinct(custid)) as unique_cust_clicks
+from &prod._click_stg3
+where clicktypcd in ('ONLINE','PHONE')
+group by monthyear,prodname
+order by monthyear,prodname;
+quit;
+
+data &prod._click_unique_stg;
+set &prod._click_unique_month;
+year = year(monthyear);
+run;
+
+%mend unique_clicks;
+
+%unique_clicks(car,c);
+%unique_clicks(home,h);
+
+%macro deletecurrent(prod);
+
+data dev.&prod._click_unique_month;
+set dev.&prod._click_unique_month;
+ where monthyear < input(put(&startdt.,8.),yymmdd8.);
+proc sort;
+by monthyear;
+run;
+
+data dev.&prod._click_unique_month;
+set dev.&prod._click_unique_month
+	work.&prod._click_unique_stg;
+proc sort;
+by monthyear;
+run;
+
+%mend deletecurrent;
+
+%deletecurrent(car);
+%deletecurrent(home);
+
+%macro clicksyear(prod);
+
+data &prod._click_unique_month;
+set dev.&prod._click_unique_month;
+year = year(monthyear);
+run;
+
+proc summary data=&prod._click_unique_month nway;
+class prodname year;
+var unique_cust_clicks;
+output out=dev.&prod._click_unique_year(drop=_type_ _freq_)sum=;
+run;
+
+%mend clicksyear;
+
+%clicksyear(car);
+%clicksyear(home);
+
+%macro append_to_main(prod);
+
+proc sql;
+create table dev.&prod._monthly2 as
+select a.*, b.unique_quotes, c.unique_cust_clicks as unique_clicks, c.unique_cust_clicks/b.unique_quotes as unique_click_per
+from dev.&prod._monthly a left join dev.&prod._monthly_unique_cust b
+on a.prodname = b.prodname
+and a.monthyear = b.monthyear
+left join dev.&prod._click_unique_month c
+on a.prodname = c.prodname
+and a.monthyear = c.monthyear;
+quit;
+
+
+%mend append_to_main;
+
+%append_to_main(car);
+%append_to_main(home);
+
+%macro append_to_mainyr(prod);
+
+proc sql;
+create table dev.&prod._yearly2 as
+select a.*, b.unique_quotes, c.unique_cust_clicks as unique_clicks, c.unique_cust_clicks/b.unique_quotes as unique_click_per
+from dev.&prod._yearly a left join dev.&prod._yearly_unique_cust b
+on a.prodname = b.prodname
+and a.yearnum = b.year
+left join dev.&prod._click_unique_year c
+on a.prodname = c.prodname
+and a.yearnum = c.year;
+quit;
+
+%mend append_to_mainyr;
+
+%append_to_mainyr(car);
+%append_to_mainyr(home);
 
 
 </code>
