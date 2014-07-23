@@ -7,7 +7,73 @@
 <pre>
 <code>
 
+%include "E:\DI_Scratch\WPS Code\Live\include\include.sas";
+%register(Packs,CopyToItch);
 
+LIBNAME ITCH ODBC DATASRC=DW_TC_SCRATCH	SCHEMA=DBO;
+LIBNAME PackData     'E:\DI_Scratch\Partner Packs';
+
+proc sql noprint; select max(date) into: maxdate from PackData.car_daily; quit;
+
+data PPdaily(drop=date1);
+retain product date;
+set PackData.car_daily(rename=(date=date1))
+	PackData.home_daily(rename=(date=date1));
+where date1 >= (&maxdate. - 365);
+date = input(put(date1,yymmddn8.),8.);
+proc sort;
+by product date;
+run;
+
+data PPweekly;
+set PackData.car_weekly
+	PackData.home_weekly;
+proc sort;
+by product week;
+run;
+
+data PPmonthly;
+set PackData.car_monthly2
+	PackData.home_monthly2;
+proc sort;
+by product monthyear;
+run;
+
+data PPyearly;
+set PackData.car_yearly2
+	PackData.home_yearly2;
+proc sort;
+by product yearnum;
+run;
+
+%macro copytoitch(file);
+
+data &file(drop=i);
+  set &file;
+  array testmiss(*) _numeric_;
+  do i = 1 to dim(testmiss);
+    if testmiss(i) > 1000000000 then testmiss(i)=0;
+    if testmiss(i) = . then testmiss(i)=0;
+    if testmiss(i) = '' then testmiss(i)=0;
+  end;
+run;
+
+proc datasets lib=itch;
+delete &file;
+run;
+
+data itch.&file;
+set &file.;
+run;
+
+%mend;
+
+%copytoitch(PPdaily);
+%copytoitch(PPweekly);
+%copytoitch(PPmonthly);
+%copytoitch(PPyearly);
+
+%registercomplete;
 
 </code>
 </pre>
