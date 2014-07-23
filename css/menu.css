@@ -48,7 +48,7 @@ ol, ul {
 /* HEADER */
 #wrap > header {
 	background-color: #333;
-	padding-bottom: 15px;
+	padding-bottom: 10px;
 }
 .logo {
 	display: inline-block;
