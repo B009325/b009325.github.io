@@ -7,7 +7,155 @@
 <pre>
 <code>
 
+%macro ZippitPW(file, extn, password);
+option noxwait noxsync;
+data _null_;
+  infile "\\Uktcl02tcsas01a\di_scratch\7-zip\7z.exe  a -p&password. ""&file..zip"" ""&file..&extn."" " pipe ;
+  input ;
+  put _infile_;
+run;
+%mend;
 
+%let dir=D:\Partner_Packs\Dev;
+
+/* AA */
+%zippitpw(&dir.\Tesco Compare Dashboard - AA,xls,AA1S);
+/*Budget*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Budget,xls,ceiling);
+/*The Co-operative*/
+%zippitpw(&dir.\Tesco Compare Dashboard - The Co-operative,xls,ceiling);
+/*CIS*/ 
+%zippitpw(&dir.\Tesco Compare Dashboard - CIS,xls,driveway);
+/*RAC*/
+%zippitpw(&dir.\Tesco Compare Dashboard - RAC,xls,br3akd0wn);
+/*esure*/
+%zippitpw(&dir.\Tesco Compare Dashboard - esure,xls,tescoesure);
+/*ecar*/
+%zippitpw(&dir.\Tesco Compare Dashboard - ecar,xls,driving);
+/*Kwik-Fit*/
+%zippitpw(&dir.\Tesco Compare Dashboard - KwikFit,xls,lynchp1n);
+/*More Than*/
+%zippitpw(&dir.\Tesco Compare Dashboard - More Than,xls,more36);
+/*Swinton*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Swinton,xls,m0t0rway);
+/*Outright*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Autodirect,xls,barr13r);
+/*Admiral*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Admiral,xls,n3lson);
+/*Endsleigh*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Endsleigh,xls,ch3lt3nham);
+/*RBSi*/
+%zippitpw(&dir.\Tesco Compare Dashboard - RBSI,xls,everton);
+%zippitpw(&dir.\Tesco Compare Dashboard - UKI,xls,everton);
+/*TPF*/
+%zippitpw(&dir.\Tesco Compare Dashboard - TPF,xls,everton);
+/*TB Box */
+%zippitpw(&dir.\Tesco Compare Dashboard - Tesco Bank Box,xls,suDa!m3t);
+/*Devitt*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Devitt,xls,everton);
+/*Direct Choice*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Direct Choice,xls,d1ff3r3nc3);
+/*A&A*/
+%zippitpw(&dir.\Tesco Compare Dashboard - ESI,xls,Ranc3);
+/*A&A*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Quotea,xls,Ranc3);
+/*A&A*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Broker King,xls,Ranc3);
+/*Express*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Express,xls,expr355);
+/*Hastings*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Hastings,xls,seaside);
+/*Hastings Smart Miles*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Hastings Smart Miles,xls,seaside);
+/*The Policy Shop*/
+%zippitpw(&dir.\Tesco Compare Dashboard - The Policy Shop,xls,bu773r);
+/*Autonet*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Autonet,xls,p3nc1l);
+/*Equity*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Equity,xls,w1mbled0n);
+/*First*/
+%zippitpw(&dir.\Tesco Compare Dashboard - First,xls,F1r5t);
+/*InsureYourMotor*/
+%zippitpw(&dir.\Tesco Compare Dashboard - InsureYourMotor,xls,orang3);
+/*Ladybird*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Ladybird,xls,fl0w3r);
+/*One Call*/
+%zippitpw(&dir.\Tesco Compare Dashboard - One Call,xls,t3l3phon3);
+/*Performance Direct*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Performance Direct,xls,p3rf0rmanc3);
+/*Sureterm*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Sureterm,xls,sur313rm);
+/*Saga*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Saga,xls,AA1S);
+ /*IGO4*/
+%zippitpw(&dir.\Tesco Compare Dashboard - IGO4,xls,IGO41);
+/*Bell*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Bell,xls,ringer);
+/*Elephant*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Elephant,xls,el3Phan1);
+/*Lloyds and Halifax*/
+%zippitpw(&dir.\Tesco Compare Dashboard - LloydsHalifax,xls,h0rses);
+/*Swift Cover*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Swiftcover,xls,swiftbird);
+/*Insurance Factory*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Insurance Factory,xls,R1v3r);
+/*Chaucer Direct*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Chaucer,xls,stAp35ce);
+/*Collingwood*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Collingwood,xls,hUprEc4u);
+/*Key Worker Insure*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Key Worker Insure,xls,Tansl3y);
+/*Go Skippy*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Go Skippy,xls,Au5tral1a);
+
+
+/* home */
+
+/*AA*/
+%zippitpw(&dir.\Tesco Compare Dashboard - AA Home,xls,AA1S);
+/*Budget*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Budget Home,xls,ceiling);
+/*Barclays*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Barclays Home,xls,3x3rc153);
+/*esure*/
+%zippitpw(&dir.\Tesco Compare Dashboard - esure Home,xls,tescoesure);
+/*Kwik-Fit*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Kwik-Fit Home,xls,lynchp1n);
+/*More Than*/
+%zippitpw(&dir.\Tesco Compare Dashboard - More Than Home,xls,more36);
+/*Swiftcover (AXA)*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Swiftcover Home,xls,swiftbird);
+/*Swinton*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Swinton Home,xls,m0t0rway);
+/*Outright*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Coverdirect Home,xls,barr13r);
+/*Endsleigh*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Endsleigh Home,xls,ch3lt3nham);
+/*RBSi*/
+%zippitpw(&dir.\Tesco Compare Dashboard - RBSI Home,xls,everton);
+%zippitpw(&dir.\Tesco Compare Dashboard - UKI Home,xls,everton);
+/*TPF*/
+%zippitpw(&dir.\Tesco Compare Dashboard - TPF Home,xls,everton);
+/*Elephant*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Elephant Home,xls,el3Phan1);
+/*IGO4*/
+%zippitpw(&dir.\Tesco Compare Dashboard - IGO4 Home,xls,IGO41);
+/*Diamond*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Diamond Home,xls,jew3l);
+/*Key Connect*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Key Connect Home,xls,c0nnect);
+/*Legal & General*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Legal & General Home,xls,r75Medre);
+/*Lloyds*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Lloyds Home,xls,h0rses);
+/*Amex*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Amex Home,xls,amex1);
+/*RAC*/
+%zippitpw(&dir.\Tesco Compare Dashboard - RAC Home,xls,br3akd0wn);
+/*Hastings*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Hastings Home,xls,seaside);
+/*Policy Expert*/
+%zippitpw(&dir.\Tesco Compare Dashboard - Policy Expert Home,xls,pr0f3ssional);
 
 </code>
 </pre>
