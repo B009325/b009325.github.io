@@ -1,0 +1,126 @@
+
+
+
+/************************************/
+/**** Create Stg Tables *************/
+/************************************/
+
+DATA partner_Data_stg;
+SET dev.partner_data;
+sasDate = input(put(dtkey,8.),yymmdd8.);
+wkday = weekday(sasdate)-1+(weekday(sasdate)=1)*7;
+wc = sasdate - (wkday-1);
+FORMAT wc sasdate date9.;
+month = month(sasdate);	  
+year = year(sasdate);
+monyy = mdy(month,01,year);
+FORMAT monyy monyy7.;
+RUN;
+
+proc sql;
+create table partner_data_stg2 as
+select a.*, b.rqst as rqst_r, 
+		    b.filtered as filtered_R,
+			b.rspe as rspe_r,
+			b.position_one as position_one_r,
+			b.position_two as position_two_r,
+			b.position_three as position_three_r,												  
+			b.timedout as timedout_r,
+			b.failure as failure_r
+from partner_data_stg a left join dev.partner_Data_r b
+on lowcase(a.product) = lowcase(b.product)
+and a.prodkey = b.prodkey
+and a.dtkey = b.dtkey;
+quit;
+
+%macro create_stg(freq,freqname,newname);
+
+PROC SQL;
+ CREATE TABLE WORK.&freq. AS SELECT
+	 Product,
+	 &freqname. as &newname.,
+	 Prodname,
+	 sum(rqst) AS rqst,
+	 coalesce(sum(rqst_r),0) AS rqst_r,
+	 (calculated rqst-sum(FILTERED)) AS req_sent,
+	 (calculated rqst_r-coalesce(sum(FILTERED_r),0)) AS req_sent_r,
+	 (calculated req_sent-calculated req_sent_R) as req_sent_less_r,
+	 (calculated req_sent/calculated rqst) AS per_quotes_submtd,
+	 sum(rspe) AS rspe,
+	 coalesce(sum(rspe_r),0) as rspe_r,
+	 (calculated rspe - calculated rspe_r) as rspe_less_r,
+	 (calculated RSPE/calculated req_sent) AS prem_ret_per,
+	 (calculated RSPE/calculated RQST) AS per_qt,
+	 (sum(Position_One)/calculated rspe) AS pos1_per,
+	 (sum(Position_two)/calculated rspe) AS pos2_per,
+	 (sum(Position_three)/calculated rspe) AS pos3_per,
+	 (sum(rank)/calculated rspe) AS avg_rank,
+	 sum(Dev_Online) AS Dev_Online,
+	 (calculated dev_online/coalesce(calculated RSPE_less_r,0)) AS BNC_PER,
+	 (sum(SD_Online)+sum(SD_Phone)) AS sd_clicks,
+	 (calculated sd_clicks/calculated rspe_less_r) AS sd_click_per,
+	 (sum(Dev_Online)+sum(Dev_Phone)) AS dev_clicks,
+	 (calculated dev_clicks/calculated rspe_less_r) AS dev_click_per,
+	 (sum(position_one)-coalesce(sum(position_one_r),0)) as position_one_less_r,
+	 (sum(position_two)-coalesce(sum(position_two_r),0)) as position_two_less_r,
+	 (sum(position_three)-coalesce(sum(position_three_r),0)) as position_three_less_r,
+	 (sum(pos1_click)/(calculated position_one_less_r)) AS pos1_click_per,
+	 (sum(pos2_click)/(calculated position_two_less_r)) AS pos2_click_per,
+	 (sum(pos3_click)/(calculated position_three_less_r)) AS pos3_click_per,
+	 (sum(click_premium)/calculated dev_clicks) AS AVG_CLC_PREM,
+	 (sum(Premiun)/calculated rspe) AS avg_premium,
+	 (sum(response_time)/calculated rspe) AS response_time,
+	 sum(TIMEDOUT) AS TIMEDOUT,
+	 sum(FAILURE) as FAILURE,
+	 coalesce(sum(TIMEDOUT_R),0) as TIMEDOUT_R,
+	 coalesce(sum(FAILURE_R),0) as FAILURE_R,
+	 (calculated FAILURE)-(calculated FAILURE_R) as FAILURE_LESS_R,
+	 (calculated TIMEDOUT-calculated TIMEDOUT_R) as TIMEDOUT_LESS_R,
+	 (calculated TIMEDOUT+sum(FAILURE)) AS failed_resp,
+	 (calculated TIMEDOUT_R+calculated FAILURE_R) AS failed_resp_r
+ FROM PARTNER_DATA_STG2
+ GROUP BY Product, &freqname., prodname
+ ORDER BY Product, &freqname. descending, prodname;
+QUIT;
+
+%mend create_stg;
+
+%macro addranks(freq,freqname);
+
+proc sort data=&freq.;
+by product &freqname. descending per_qt;
+run;
+
+proc rank data=&freq. out=&freq. ties=low descending;
+by product &freqname.;
+var per_qt pos1_per;
+ranks quotability_ranking Top_price_ranking;
+run;
+
+%mend addranks;
+
+%macro split(freq);
+
+DATA dev.CAR_&freq. dev.HOME_&freq.;
+SET &freq.;
+IF lowcase(PRODUCT)='car' THEN OUTPUT dev.CAR_&freq.;
+ELSE OUTPUT dev.HOME_&freq.;
+RUN;
+
+%mend split;
+
+%create_stg(daily,sasdate,date);
+%addranks(daily,date);
+%split(daily);
+
+%create_stg(weekly,wc,week);
+%addranks(weekly,week);
+%split(weekly);
+
+%create_stg(monthly,monyy,monthyear);
+%addranks(monthly,monthyear);
+%split(monthly);
+
+%create_stg(yearly,year,yearnum);
+%addranks(yearly,yearnum);
+%split(yearly);
