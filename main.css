@@ -10,5 +10,7 @@ div#container {
 	padding-bottom: 5px;
 	padding-left: 1px;
 	padding-right: 1px;
-	background:rgb(74,81,85)
+	background:rgb(74,81,85);
+	border: 2px solid;
+	border-radius: 25px;
 	}
