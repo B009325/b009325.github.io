@@ -7,7 +7,96 @@
 <pre>
 <code>
 
+%let dir=d:\Partner_Packs\Dev;
+%macro outmail(files,contacts);
+	filename outbox email ;
+	data _null_;
+	file outbox 
+	to=(&contacts.)
+	from="tcdatains@i.tescobank.com"
+	subject="Tesco Compare MI - Home"
+	attach=(&files.);
+	put "Please find attached this week's Tesco Compare MI Pack.";
+	put ;
+	put "If you have any queries or concerns please contact your relationship manager in the first instance.";
+	put ;
+	put "Regards";
+	put ;
+	put "Tesco Compare Data & Insight Team";
+	put "Data & Insight | Tesco Compare | EHQ | 2 South Gyle Crescent | Edinburgh | EH12 9FQ"; 
+	put "tcdatains@tescobank.com";
+	run;
+%mend outmail;
 
+/*AA*/
+%outmail("&dir.\Tesco Compare Dashboard - AA Home.zip","Alison.Crossley@TheAA.com" "Claudia.tinnirello@theaa.com");
+/*Budget*/
+%outmail("&dir.\Tesco Compare Dashboard - Budget Home.zip","eCommerce.Support@bglgroup.co.uk" "paul.chapman@bglgroup.co.uk" "Tamasine.Foot@bglgroup.co.uk" "junctionMI@bglgroup.co.uk");
+/*Barclays*/
+%outmail("&dir.\Tesco Compare Dashboard - Barclays Home.zip", "nicola.shepherd@barclays.com" "gaurav.saxena@barclays.com" "puspendrasingh.tiwari@barclays.com");
+/*esure*/
+%outmail("&dir.\Tesco Compare Dashboard - esure Home.zip","Nikki.Sellers@esure.com" "Mark.Fell@esure.com");
+/*Kwik-Fit*/
+%outmail("&dir.\Tesco Compare Dashboard - Kwik-Fit Home.zip","janice.cuthbertson@kfis.co.uk" "Tony.Way@ageas.co.uk" "paul.tammaro@kfis.co.uk" "jamie.mccoy@kfis.co.uk" "Lorraine.cooper@kfis.co.uk" "centraladmin@kfis.co.uk");
+/*More Than*/
+%outmail("&dir.\Tesco Compare Dashboard - More Than Home.zip","Partner.Data@uk.rsagroup.com" "Rose.howarth@uk.rsagroup.com" "CENTRAL.MISUPPORT@UK.RSAGROUP.COM" "andrew.z.maton@uk.rsagroup.com");
+/*Swiftcover (AXA)*/
+%outmail("&dir.\Tesco Compare Dashboard - Swiftcover Home.zip", "Darius.Lau@swiftcover.com" "Chris.Wilkins@swiftcover.com");
+/*Swinton*/
+%outmail("&dir.\Tesco Compare Dashboard - Swinton Home.zip", "Aggregator_Reports@swinton.co.uk");
+/*Outright*/
+%outmail("&dir.\Tesco Compare Dashboard - Coverdirect Home.zip","Andrew.Berrow@ukais.co.uk" "andrew.cartin@ukais.co.uk" "Tony.Way@ageas.co.uk");
+/*Endsleigh*/
+%outmail("&dir.\Tesco Compare Dashboard - Endsleigh Home.zip","James.Purcell@endsleigh.co.uk");
+/*RBSi*/
+%outmail("&dir.\Tesco Compare Dashboard - RBSI Home.zip" "&dir.\Tesco Compare Dashboard - UKI Home.zip","FM-012218@rbos.co.uk");
+/*TPF*/
+%outmail("&dir.\Tesco Compare Dashboard - TPF Home.zip","Mark.Airey@tescobank.com" "Maitham.Mohsin@tescobank.com" "mandy.hood@tescobank.com" "Gordon.barrie@tescobank.com" "elaine.kerrigan@tescobank.com" "sam.baines@tescobank.com" "Elisa.Goodwin@tescobank.com" "jennifer.wilson@tescobank.com" "Stephen.R.Robertson@tescobank.com" "Tom.Bailey@tescobank.com" "graham.tidd@i.tescobank.com" "TBaggregatorteam@i.tescobank.com");
+/*Elephant*/
+/*%outmail("&dir.\Tesco Compare Dashboard - Elephant Home.zip","Sabine.WILLIAMS@admiralgroup.co.uk" "Neal.Bigmore@admiralgroup.co.uk" "AYates@heathlambert.com" "OnlineMediaReport@admiralgroup.co.uk");*/
+/*IGO4*/
+%outmail("&dir.\Tesco Compare Dashboard - IGO4 Home.zip","tom.cooper@igo4.com" "chris.gray@igo4.com" "louise.walker@igo4.com" "Alison.Astell@igo4.com" "Richie.brown@igo4.com" "Tom.cooper@igo4.com" "sally.bradshaw@igo4.com");
+/*Diamond*/
+/*%outmail("&dir.\Tesco Compare Dashboard - Diamond Home.zip","sabine.williams@admiralgroup.co.uk" "Neal.Bigmore@admiralgroup.co.uk" "AYates@heathlambert.com"*/
+/*"OnlineMediaReport@admiralgroup.co.uk");*/
+/*Key Connect*/
+%outmail("&dir.\Tesco Compare Dashboard - Key Connect Home.zip","uk.bournemouth.ecommerce.analytics@ajg.com");
+/*Legal & General*/
+%outmail("&dir.\Tesco Compare Dashboard - Legal & General Home.zip","Vicky.Wintrip@landg.com" "sarah.lloyd@landg.com" "anudip.tank@landg.com");
+/*Lloyds*/
+%outmail("&dir.\Tesco Compare Dashboard - Lloyds Home.zip", "Noreen.Hoye@LloydsTSB.co.uk" "hbosgiecommerce@hbosplc.com" "JohnMount@Halifax.co.uk" "SoneyManic@Halifax.co.uk" "Louis.Powell@LloydsTSB.co.uk");
+/*Amex*/
+%outmail("&dir.\Tesco Compare Dashboard - Amex Home.zip", "Tim.Wintle@ukais.co.uk" "Andrew.Berrow@ukais.co.uk" "andrew.cartin@ukais.co.uk");
+/*RAC*/
+%outmail("&dir.\Tesco Compare Dashboard - RAC Home.zip", "rpaull@rac.co.uk" "uk.bournemouth.ecommerce.analytics@ajg.com");
+/*Hastings*/
+%outmail("&dir.\Tesco Compare Dashboard - Hastings Home.zip", "aggmi@hastingsdirect.com" "aggmi@renewinsurance.com" "markdrinkwater@hastingsdirect.com" "JodeeSmithers@hastingsdirect.com");
+/*Policy Expert*/
+%outmail("&dir.\Tesco Compare Dashboard - Policy Expert Home.zip", "dbunyan@policyexpert.co.uk" "cminetou@qmetric.co.uk");
+
+
+/* Compare team email confirmation */
+FILENAME output EMAIL
+SUBJECT="Home Partner Pack weekly distribution complete - New Packs"
+	from="tcdatains@i.tescobank.com"
+
+TO= ("05_TB_TESCOCOMPAREMITEAM@uk.tesco.com" "John.Blevins@i.tescobank.com"  "Gillian.McInnes@i.tescobank.com");
+
+/* Sending email */;
+DATA _NULL_;
+FILE output;
+PUT "All,";
+PUT ;
+PUT "The Partner packs for Home have now been distributed to partners";
+put;
+put "Regards";
+put ;
+put "Tesco Compare Data & Insight Team";
+put "Data & Insight | Tesco Compare | EHQ | 2 South Gyle Crescent | Edinburgh | EH12 9FQ"; 
+put ;
+put "tcdatains@i.tescobank.com";
+
+RUN;
 
 </code>
 </pre>
