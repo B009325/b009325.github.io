@@ -7,6 +7,218 @@
 <pre>
 <code>
 
+/***********************************/
+/************** Sales **************/
+/***********************************/
+
+libname DI "E:\DI_Scratch\RegularJobs\";
+%include "E:\DI_Scratch\include\include.sas";
+
+proc sql;
+create table RepNames as 
+select reportingname, MasterProdId 
+from moe.partners where currentrow=1 and MasterProdid=ProdId
+group by reportingname;
+quit;
+
+proc sql;
+create table CSSummaryDetail as 
+select 
+      a.ProdCat, a.InvoicingBrand,  a.prodid, year, mdy(month,01,year) format monyy7. as monthyear,
+      c.reportingname, 
+      sum(Net) as Net,
+      sum(InvAmount) as InvAmount
+from moe.controlsheet a
+join moe.partners b on a.prodid=b.prodid and b.currentrow=1
+join Repnames c on b.masterprodid=c.masterprodid
+where a.prodid not in (200014101,200014102) /* Remove Endsleigh renters and possesions */
+      and Year>=2011
+group by a.ProdCat, a.InvoicingBrand, a.prodid, year, calculated monthyear, c.reportingname
+;
+quit;
+
+
+proc sql;
+create table Sales as 
+select 
+	ProdCat, year, monthyear, reportingname, 
+	sum(Net) as Net,
+	sum(InvAmount) as InvAmount
+from CSSummaryDetail 
+group by ProdCat, year, monthyear, reportingname;
+quit;
+
+proc summary data=sales nway missing;
+class prodcat monthyear reportingname;
+var net;
+output out=sales_month(drop=_type_ _freq_)sum=;
+run;
+
+proc summary data=sales nway missing;
+class prodcat year ReportingName;
+var net;
+output out=sales_year(drop=_type_ _freq_)sum=;
+run;
+
+proc rank data=sales_month out=sales_month_rank ties=low descending;
+by prodcat monthyear;
+var net;
+ranks sales_ranking;
+run;
+
+proc rank data=sales_year out=sales_year_rank ties=low descending;
+by prodcat year;
+var net;
+ranks sales_ranking;
+run;
+
+data dev.car_monthly2;
+set dev.car_monthly2;
+run;
+data dev.car_yearly2;
+set dev.car_yearly2;
+run;
+data dev.home_monthly2;
+set dev.home_monthly2;
+run;
+data dev.home_yearly2;
+set dev.home_yearly2;
+run;
+
+proc sql;
+create table car_monthly2 as
+select a.*, b.net as sales, c.sales_ranking as sales_ranking
+from dev.car_monthly2 a 
+left join sales_month b on a.product = b.prodcat
+	and	a.monthyear = b.monthyear
+	and a.prodname = b.ReportingName
+
+left join sales_month_rank c
+	on a.product = c.prodcat
+	and	a.monthyear = c.monthyear
+	and a.prodname = C.ReportingName;
+quit; 
+
+proc sql;
+create table car_yearly2 as
+select a.*, b.net as sales, c.sales_ranking as sales_ranking
+from dev.car_yearly2 a left join sales_year b
+on a.product = b.prodcat
+and	a.yearnum = b.year
+and a.prodname = b.ReportingName
+left join sales_year_rank c
+on a.product = c.prodcat
+and	a.yearnum = c.year
+and a.prodname = C.ReportingName;
+quit; 
+
+proc sql;
+create table home_monthly2 as
+select a.*, b.net as sales, c.sales_ranking as sales_ranking
+from dev.home_monthly2 a left join sales_month b
+on a.product = b.prodcat
+and	a.monthyear = b.monthyear
+and a.prodname = b.ReportingName
+left join sales_month_rank c
+on a.product = c.prodcat
+and	a.monthyear = c.monthyear
+and a.prodname = C.ReportingName;
+quit; 
+
+proc sql;
+create table home_yearly2 as
+select a.*, b.net as sales, c.sales_ranking as sales_ranking
+from dev.home_yearly2 a left join sales_year b
+on a.product = b.prodcat
+and	a.yearnum = b.year
+and a.prodname = b.ReportingName
+left join sales_year_rank c
+on a.product = c.prodcat
+and	a.yearnum = c.year
+and a.prodname = C.ReportingName;
+quit; 
+
+%macro convert(dsname);
+
+data &dsname.(drop=i);
+  set &dsname.;
+  array testmiss(*) _numeric_;
+  do i = 1 to dim(testmiss);
+    if testmiss(i)=. then testmiss(i)=0;
+  end;
+if sales > 0 and unique_quotes > 0 then 
+	do;
+	cust_to_sale_per = sales / unique_quotes;
+	end;
+if sales > 0 and unique_clicks > 0 then 
+	do;
+	click_to_sale_per = sales / unique_clicks;
+	end;
+run;
+
+%mend convert;
+
+%convert(car_monthly2);
+%convert(car_yearly2);
+%convert(home_monthly2);
+%convert(home_yearly2);
+
+proc rank data=car_monthly2 out=dev.car_monthly2 ties=low descending;
+by product monthyear;
+var cust_to_sale_per click_to_sale_per;
+ranks cust2sale_ranking click2sale_ranking;
+run;
+
+proc rank data=car_yearly2 out=dev.car_yearly2 ties=low descending;
+by product yearnum;
+var cust_to_sale_per click_to_sale_per;
+ranks cust2sale_ranking click2sale_ranking;
+run;
+
+proc rank data=home_monthly2 out=dev.home_monthly2 ties=low descending;
+by product monthyear;
+var cust_to_sale_per click_to_sale_per;
+ranks cust2sale_ranking click2sale_ranking;
+run;
+
+proc rank data=home_yearly2 out=dev.home_yearly2 ties=low descending;
+by product yearnum;
+var cust_to_sale_per click_to_sale_per;
+ranks cust2sale_ranking click2sale_ranking;
+run;
+
+
+proc sort data=dev.car_Daily;
+by descending date prodname;
+run;
+
+proc sort data=dev.car_weekly;
+by descending week prodname;
+run;
+
+proc sort data=dev.car_monthly2;
+by descending monthyear prodname;
+run;
+
+proc sort data=dev.car_yearly2;
+by descending yearnum prodname;
+run;
+
+proc sort data=dev.home_Daily;
+by descending date prodname;
+run;
+
+proc sort data=dev.home_weekly;
+by descending week prodname;
+run;
+
+proc sort data=dev.home_monthly2;
+by descending monthyear prodname;
+run;
+
+proc sort data=dev.home_yearly2;
+by descending yearnum prodname;
+run;
 
 
 </code>
