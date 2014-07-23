@@ -7,6 +7,202 @@
 <pre>
 <code>
 
+/************************************/
+/**** Additional Req's **************/
+/************************************/
+
+libname krust 'E:\DI_Scratch\krust';
+
+%macro create_stg_min(prod,init);
+
+proc sql;
+   create table work.&prod._rspe_Stg as
+      select a.RqstDtKey, a.ProdKey,a.CustId,a.AnnPrem,a.QutnRspeRank,
+		     a.&init.QRqstKey,a.&init.QRspeKey,b.ClickTypCd,b.ClickDtKey,
+			 case when 1 <= QutnRspeRank <= 5 then 1 else 0 end as top5_click,
+			 case when QutnRspeRank > 5 then 1 else 0 end as over5_click
+      from  DW_FACT.&prod.QutnRspe a right join DW_FACT.&prod.Click b
+      on (a.RqstDtKey = b.RqstDtKey
+      and a.&init.QRqstKey = b.&init.QRqstKey
+      and a.&init.QRspeKey = b.&init.QRspeKey)
+	  where a.RqstDtKey >= 20101201
+	  and b.ClickTypCD in ('ONLINE','PHONE');
+
+create table &prod._min1click as
+select distinct rqstdtkey, prodkey,&init.qrspekey
+from &prod._rspe_stg;
+
+proc sql;
+create table prods as 
+select distinct prodkey, 
+	(select max(reportingname) from moe.partners c where c.prodid in 
+		(select max(d.masterprodid) from moe.partners d where d.prodid=a.prodid and d.currentrow)
+		) as ProdName
+from dw_dim.prod a
+;
+quit;
+
+proc sql;
+create table &prod._min1click_stg as
+select a.rqstdtkey,a.&init.qrspekey, b.prodname
+from &prod._min1click a, prods b
+where a.prodkey = b.prodkey;
+quit;
+
+data &prod._min1click_stg2;
+set &prod._min1click_stg;
+date = input(put(rqstdtkey,8.),yymmdd8.);
+monthyear = mdy(month(date),01,year(date));
+yearnum = year(date);
+wkday = weekday(date)-1+(weekday(date)=1)*7;
+week = date - (wkday-1);
+format date monthyear week date9.;
+run;
+
+%mend create_stg_min;
+
+%create_stg_min(car,c);
+%create_stg_min(home,h);
+
+%macro split_min(prod,freqname,freq);
+
+proc summary data=&prod._min1click_stg2 nway;
+class prodname &freqname.;
+output out=&prod._min1_&freq.(drop=_type_ rename=(_freq_=quotes));
+run;
+
+proc sort data=&prod._min1_&freq.;
+by &freqname.;
+run;
+
+proc rank data=&prod._min1_&freq. out=&prod._min1_&freq._out ties=low descending;
+by &freqname.;
+var quotes;
+ranks click_ranking;
+run;
+
+%mend split_min;
+
+%split_min(car,date,daily);
+%split_min(car,week,weekly);
+%split_min(car,monthyear,monthly);
+%split_min(car,yearnum,yearly);
+%split_min(home,date,daily);
+%split_min(home,week,weekly);
+%split_min(home,monthyear,monthly);
+%split_min(home,yearnum,yearly);
+
+%macro create_Stg_top5(prod,init);
+
+proc sql;
+create table &prod._top5_stg as
+select distinct a.rqstdtkey,a.&init.qrqstkey,a.prodkey,a.top5_click,a.over5_click,
+	  			b.prodname
+from &prod._rspe_stg a left join prods b
+on a.prodkey = b.prodkey
+where clicktypcd;
+quit;
+
+proc summary data=&prod._top5_stg nway;
+class rqstdtkey prodname;
+var top5_click over5_click;
+output out=&prod._top5_stg2(drop=_type_ _freq_)sum=;
+run;
+
+data &prod._top5_stg3;
+set &prod._top5_Stg2;
+date = input(put(rqstdtkey,8.),yymmdd8.);
+monthyear = mdy(month(date),01,year(date));
+yearnum = year(date);
+wkday = weekday(date)-1+(weekday(date)=1)*7;
+week = date - (wkday-1);
+format date monthyear week date9.;
+run;
+
+%mend create_Stg_top5;
+
+%create_Stg_top5(car,c);
+%create_Stg_top5(home,h);
+
+%macro split_top5(prod,freqname,freq);
+
+proc summary data=&prod._top5_stg3 nway;
+class prodname &freqname.;
+var top5_click over5_click;
+output out=&prod._top5_&freq.(drop=_type_ _freq_)sum=;
+run;
+
+proc sort data=&prod._top5_&freq.;
+by &freqname.;
+run;
+
+proc rank data=&prod._top5_&freq. out=&prod._top5_&freq._out ties=low descending;
+by &freqname.;
+var top5_click over5_click;
+ranks top5_click_ranking over5_click_ranking;
+run;
+
+%mend split_top5;
+
+%split_top5(car,date,daily);
+%split_top5(car,week,weekly);
+%split_top5(car,monthyear,monthly);
+%split_top5(car,yearnum,yearly);
+%split_top5(home,date,daily);
+%split_top5(home,week,weekly);
+%split_top5(home,monthyear,monthly);
+%split_top5(home,yearnum,yearly);
+
+%macro addtomain(prod);
+
+proc sql;
+create table dev.&prod._yearly as
+select a.*, b.click_ranking, c.top5_click_ranking, c.over5_click_ranking
+from dev.&prod._yearly a left join work.&prod._min1_yearly_out b
+on a.prodname = b.prodname
+and a.yearnum = b.yearnum
+left join &prod._top5_yearly_out c
+on a.prodname = c.prodname
+and a.yearnum = c.yearnum;
+quit;
+
+proc sql;
+create table dev.&prod._monthly as
+select a.*, b.click_ranking, c.top5_click_ranking, c.over5_click_ranking
+from dev.&prod._monthly a left join work.&prod._min1_monthly_out b
+on a.prodname = b.prodname
+and a.monthyear = b.monthyear
+left join &prod._top5_monthly_out c
+on a.prodname = c.prodname
+and a.monthyear = c.monthyear;
+quit;
+
+proc sql;
+create table dev.&prod._weekly as
+select a.*, b.click_ranking, c.top5_click_ranking, c.over5_click_ranking
+from dev.&prod._weekly a left join work.&prod._min1_weekly_out b
+on a.prodname = b.prodname
+and a.week = b.week
+left join &prod._top5_weekly_out c
+on a.prodname = c.prodname
+and a.week = c.week;
+quit;
+
+proc sql;
+create table dev.&prod._daily as
+select a.*, b.click_ranking, c.top5_click_ranking, c.over5_click_ranking
+from dev.&prod._daily a left join work.&prod._min1_daily_out b
+on a.prodname = b.prodname
+and a.date = b.date
+left join &prod._top5_daily_out c
+on a.prodname = c.prodname
+and a.Date = c.date;
+quit;
+
+%mend addtomain;
+
+%addtomain(car);
+%addtomain(home);
 
 
 </code>
