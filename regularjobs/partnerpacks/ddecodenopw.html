@@ -7,7 +7,677 @@
 <pre>
 <code>
 
+LIBNAME testing BASE "E:\DI_Scratch\Partner Packs" ;
 
+proc sort data=testing.car_weekly;
+by descending week;
+run;
+
+proc sort data=testing.car_daily;
+by descending date;
+run;
+
+proc sort data=testing.home_weekly;
+by descending week;
+run;
+
+proc sort data=testing.home_daily;
+by descending date;
+run;
+
+
+options mprint mlogic;
+
+%macro partner(Partner,password,brand,parent,addbrand);
+options noxwait noxsync missing=0;
+
+x "F:\PROGRA~1\MICROS~1\OFFICE11\EXCEL.EXE";
+
+data _null_;
+x=sleep(5);
+run;
+
+filename DDEcmd dde 'excel|system' notab;
+
+    data _null_;
+        format command $150.;
+        file DDEcmd;
+        if &addbrand = 1 then
+        command = '[OPEN("'||"D:\Partner_Packs\WPS\Tesco Compare Dashboard - &partner..xls"||'",1,,,"'||""||'","'||""||'")]';
+        else if &addbrand = 0 then
+        command = '[OPEN("'||"D:\Partner_Packs\WPS\Partner Pack template2.xls"||'",1,,,"'||""||'","'||""||'")]';
+        put command;
+    run;
+
+
+data _null_;
+x=sleep(5);
+run;
+
+data _null_;
+file ddecmd;
+if &addbrand = 1 then
+do;
+command = "[workbook.copy(""&parent"",""Tesco Compare Dashboard - &partner..xls"",1)]";
+put command;
+end;
+run;
+
+data _null_;
+x=sleep(1);
+run;
+
+data _null_;
+file ddecmd;
+put '[workbook.insert(3)]';
+run;
+
+data _null_;
+length fname $140.;
+if &addbrand = 1 then
+fname = "excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner..xls]macro1!r1c1:r100c1";
+else fname = "excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]macro1!r1c1:r100c1";
+call symput('fname',trim(fname));
+run;
+
+filename xlmacro dde "&fname" notab lrecl=200;
+
+data _null_;
+file xlmacro;
+if &addbrand = 1 then
+do;
+str = "'=workbook.name(""&parent (2)"",""&brand"")'";
+end;
+else
+do;
+str = "'=workbook.name(""KPIs"",""&brand"")'";
+end;
+call symput('str',str);
+put str;
+run;
+
+data _null_;
+x=sleep(1);
+run;
+
+data _null_;
+file xlmacro;
+put &str;
+put '=halt(true)';
+put '!dde_flush';
+file ddecmd;
+put '[run("macro1!r1c1")]';
+put '[error(false)]';
+run;
+filename xlmacro clear;
+
+data _null_;
+x=sleep(2);
+run;
+
+data _null_;
+file ddecmd;
+put '[workbook.delete("macro1")]';
+run;
+
+data _null_;
+length h1 $140.;
+if &addbrand = 1 then
+h1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner..xls]&brand. !R3C7";
+else h1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R3C7";
+call symput('h1',trim(h1));
+run;
+
+filename head1 dde "&h1" notab lrecl=1000;
+
+data _null_;
+file head1;
+command = "&brand. Car KPI's";
+put command;
+run;
+
+data _null_;
+length data1 $140.;
+if &addbrand = 1 then
+data1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner..xls]&brand. !R11C2:R13C42";
+else data1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R11C2:R13C42";
+call symput('data1',trim(data1));
+run;
+
+filename data clear;
+filename data dde "&data1" notab;
+
+data _null_;
+file ddecmd;
+put '[select("R11C2:R13C42")]';
+put '[clear(3)]';
+put '[select("r1c1")]';
+run;
+
+data _null_;
+set testing.CAR_YEARLY2;
+where lowcase(left(translate(Prodname,'',"'"))) = lowcase("&brand");
+file data notab lrecl=1000;
+put YearNum'09'xRQST'09'xREQ_SENT_LESS_R'09'xREQ_SENT_R'09'xREQ_SENT'09'xper_quotes_submtd'09'xRspe'09'xprem_ret_per'09'x
+RSPE_LESS_R'09'xper_qt'09'xpos1_per'09'xpos2_per'09'xpos3_per'09'xavg_rank'09'xSD_Clicks'09'x
+SD_Click_per'09'xDEV_CLICKS'09'xDEV_CLICK_per'09'xpos1_click_per'09'xpos2_click_per'09'xpos3_click_per'09'xAVG_CLC_Prem'09'x
+AVG_Premium'09'xResponse_Time'09'xTIMEDOUT'09'xTIMEDOUT_LESS_R'09'xfailed_RESP'09'xfailed_resp_r'09'xquotability_ranking'09'x
+top_price_ranking'09'xclick_ranking'09'xtop5_click_ranking'09'xover5_click_ranking'09'xunique_quotes'09'xunique_clicks'09'xunique_click_per'09'x
+sales'09'xcust_to_sale_per'09'xcust2sale_ranking'09'xclick_to_sale_per'09'xclick2sale_ranking;
+run;
+
+data _null_;
+length data1 $140.;
+if &addbrand = 1 then
+data1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner..xls]&brand. !R18C2:R29C42";
+else data1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R18C2:R29C42";
+call symput('data1',trim(data1));
+run;
+
+filename data clear;
+filename data dde "&data1" notab;
+
+data _null_;
+file ddecmd;
+put '[select("R18C2:R29C42")]';
+put '[clear(3)]';
+put '[select("r1c1")]';
+run;
+
+data _null_;
+set testing.CAR_monthly2;
+where lowcase(left(translate(Prodname,'',"'"))) = lowcase("&brand");
+file data notab lrecl=1000;
+put MonthYear'09'xRQST'09'xREQ_SENT_LESS_R'09'xREQ_SENT_R'09'xREQ_SENT'09'xper_quotes_submtd'09'xRspe'09'xprem_ret_per'09'x
+RSPE_LESS_R'09'xper_qt'09'xpos1_per'09'xpos2_per'09'xpos3_per'09'xavg_rank'09'xSD_Clicks'09'x
+SD_Click_per'09'xDEV_CLICKS'09'xDEV_CLICK_per'09'xpos1_click_per'09'xpos2_click_per'09'xpos3_click_per'09'xAVG_CLC_Prem'09'x
+AVG_Premium'09'xResponse_Time'09'xTIMEDOUT'09'xTIMEDOUT_LESS_R'09'xfailed_RESP'09'xfailed_resp_r'09'xquotability_ranking'09'x
+top_price_ranking'09'xclick_ranking'09'xtop5_click_ranking'09'xover5_click_ranking'09'xunique_quotes'09'xunique_clicks'09'xunique_click_per'09'x
+sales'09'xcust_to_sale_per'09'xcust2sale_ranking'09'xclick_to_sale_per'09'xclick2sale_ranking;
+run;
+
+data _null_;
+length data1 $140.;
+if &addbrand = 1 then
+data1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner..xls]&brand. !R34C2:R86C34";
+else data1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R34C2:R86C34";
+call symput('data1',trim(data1));
+run;
+
+filename data clear;
+filename data dde "&data1" notab;
+
+data _null_;
+file ddecmd;
+put '[select("R34C2:R86C34")]';
+put '[clear(3)]';
+put '[select("r1c1")]';
+run;
+
+data _null_;
+set testing.CAR_weekly;
+where lowcase(left(translate(Prodname,'',"'"))) = lowcase("&brand") and week>=today()-365.25;
+file data notab lrecl=1000;
+put Week'09'xRQST'09'xREQ_SENT_LESS_R'09'xREQ_SENT_R'09'xREQ_SENT'09'xper_quotes_submtd'09'xRspe'09'xprem_ret_per'09'x
+RSPE_LESS_R'09'xper_qt'09'xpos1_per'09'xpos2_per'09'xpos3_per'09'xavg_rank'09'xSD_Clicks'09'x
+SD_Click_per'09'xDEV_CLICKS'09'xDEV_CLICK_per'09'xpos1_click_per'09'xpos2_click_per'09'xpos3_click_per'09'xAVG_CLC_Prem'09'x
+AVG_Premium'09'xResponse_Time'09'xTIMEDOUT'09'xTIMEDOUT_LESS_R'09'xfailed_RESP'09'xfailed_resp_r'09'xquotability_ranking'09'x
+top_price_ranking'09'xclick_ranking'09'xtop5_click_ranking'09'xover5_click_ranking;
+run;
+
+data _null_;
+length data1 $140.;
+if &addbrand = 1 then
+data1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner..xls]&brand. !R91C2:R456C34";
+else data1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R91C2:R456C34";
+call symput('data1',trim(data1));
+run;
+
+filename data clear;
+filename data dde "&data1" notab;
+
+data _null_;
+file ddecmd;
+put '[select("R91C2:R456C34")]';
+put '[clear(3)]';
+put '[select("r1c1")]';
+run;
+
+data _null_;
+set testing.CAR_daily;
+where lowcase(left(translate(Prodname,'',"'"))) = lowcase("&brand") and date>=today()-365;
+file data notab lrecl=1000;
+put date'09'xRQST'09'xREQ_SENT_LESS_R'09'xREQ_SENT_R'09'xREQ_SENT'09'xper_quotes_submtd'09'xRspe'09'xprem_ret_per'09'x
+RSPE_LESS_R'09'xper_qt'09'xpos1_per'09'xpos2_per'09'xpos3_per'09'xavg_rank'09'xSD_Clicks'09'x
+SD_Click_per'09'xDEV_CLICKS'09'xDEV_CLICK_per'09'xpos1_click_per'09'xpos2_click_per'09'xpos3_click_per'09'xAVG_CLC_Prem'09'x
+AVG_Premium'09'xResponse_Time'09'xTIMEDOUT'09'xTIMEDOUT_LESS_R'09'xfailed_RESP'09'xfailed_resp_r'09'xquotability_ranking'09'x
+top_price_ranking'09'xclick_ranking'09'xtop5_click_ranking'09'xover5_click_ranking;
+run;
+
+data _null_;
+x=sleep(2);
+run;
+
+data _null_;
+file DDEcmd;
+put '[error(false)]';
+put '[save.as("'"D:\Partner_Packs\WPS\Tesco Compare Dashboard - &partner..xls"'",1,"")]';
+run;
+
+data _null_;
+x=sleep(3);
+run;
+
+data _null_;
+file ddecmd;
+put '[FILE-CLOSE("D:\Partner_Packs\WPS\Tesco Compare Dashboard - &partner..xls")]';
+run;
+
+data _null_;
+x=sleep(3);
+run;
+
+data _null_;
+file ddecmd;
+put '[QUIT]';
+run;
+
+%mend partner;
+
+%partner (AA,AA1S,AA,,0);
+%partner (Admiral,n3lson,Admiral,,0);
+%partner (Admiral,n3lson,Diamond,Admiral,1);
+%partner (Autonet,p3nc1l,Autonet,,0);
+%partner (Autodirect,barr13r,Auto direct,,0);
+%partner (Budget,ceiling,Budget,,0);
+%partner (Budget,ceiling,Barclays,Budget,1);
+%partner (Budget,ceiling,HSBC,Budget,1);
+%partner (Budget,ceiling,Ibuyeco,Budget,1);
+%partner (Budget,ceiling,M&S Premier,Budget,1);
+%partner (Budget,ceiling,M&S Standard,Budget,1);
+%partner (Budget,ceiling,Post Office,Budget,1);
+%partner (Budget,ceiling,The Co-operative,Budget,1);
+%partner (Budget,ceiling,Yesinsurance,Budget,1);
+%partner (Budget,ceiling,RAC insurance,Budget,1);
+%partner (Collingwood,hUprEc4u,Collingwood,,0);
+%partner (Chaucer,stAp35ce,Chaucer Direct,,0);
+%partner (The Co-operative,ceiling,The Co-operative,,0);
+%partner (Broker King,Ranc3,Broker King,,0);
+%partner (Bell,ringer,Bell,,0);
+%partner (CIS,driveway,The Co-operative,,0);
+%partner (Direct Choice,d1ff3r3nc3,Direct Choice,,0);
+%partner (Devitt,everton,Devitt,,0);
+%partner (Express,expr355,Express Insurance,,0);
+%partner (eCar,driving,eCar,,0);
+%partner (ESI,Ranc3,ESInsure,,0);
+%partner (Endsleigh,ch3lt3nham,Endsleigh,,0);
+%partner (Equity,w1mbled0n,first4cover,,0);
+%partner (Equity,w1mbled0n,Nissan,first4cover,1);
+%partner (Equity,w1mbled0n,Renault,first4cover,1);
+%partner (Equity,w1mbled0n,Santander,first4cover,1);
+%partner (Equity,w1mbled0n,Skipton,first4cover,1);
+%partner (Esure,tescoesure,esure,,0);
+%partner (Esure,tescoesure,First Alternative,Esure,1);
+%partner (Esure,tescoesure,Sheilas  Wheels,Esure,1);
+%partner (Elephant,el3Phan1,Elephant,,0);
+%partner (First,F1r5t,First Insurance,,0);
+%partner (Go Skippy,Au5tral1a,Go Skippy,,0);
+%partner (Hastings,seaside,Hastings,,0);
+%partner (Hastings,seaside,Hastings Essentials,Hastings,1);
+%partner (Hastings,seaside,Hastings Premier,Hastings,1);
+%partner (Hastings,seaside,Likewise,Hastings,1);
+%partner (Hastings,seaside,Renew,Hastings,1);
+%partner (Hastings,seaside,Insure,Hastings,1);
+%partner (Hastings,seaside,Insure Blue,Hastings,1);
+%partner (Hastings,seaside,Insure Pink,Hastings,1);
+%partner (Hastings,seaside,People s Choice,Hastings,1);
+%partner (Hastings Smart Miles,T33sp@n,Smart Miles,,0);
+%partner (Insurance Factory,R1v3r,Insurance Factory,,0);
+%partner (Insurance Factory,R1v3r,Thames City,Insurance Factory,1);
+%partner (Insureyourmotor,orang3,Insureyourmotor,,0);
+%partner (IGO4,IGO41,IGO4,,0);
+%partner (IGO4,IGO41,Zenith Insurance,IGO4,1);
+%partner (IGO4,IGO41,Zenith Plus,IGO4,1);
+%partner (IGO4,IGO41,IGO4 Essentials,IGO4,1);
+%partner (IGO4,IGO41,Wise Driving,IGO4,1);
+%partner (Key Worker Insure,Tansl3y,Key Worker Insure,,0);
+%partner (KwikFit,lynchp1n,Kwik Fit,,0);
+%partner (LloydsHalifax,h0rses,Lloyds,,0);
+%partner (LloydsHalifax,h0rses,Halifax,Lloyds,1);
+%partner (Ladybird,fl0w3r,Ladybird Insurance,,0);
+%partner (Motor Quote Direct,c3r3al,MotorQuote Direct,,0);
+%partner (More Than,more36,More Than,,0);
+%partner (One Call,t3l3phon3,OneCall,,0);
+%partner (Performance Direct,p3rf0rmanc3,Performance Direct,,0);
+%partner (Performance Direct,p3rf0rmanc3,Grove and Dean,Performance Direct,1);
+%partner (Quotea,Ranc3,Quotea,,0);
+%partner (RAC,br3akd0wn,RAC insurance,,0);
+%partner (Right Choice,ch01c35,Right Choice,,0);
+%partner (RBSI,everton,Churchill,,0);
+%partner (RBSI,everton,Privilege,Churchill,1);
+%partner (SAGA,AA1S,Saga,,0);
+%partner (Sureterm,sur313rm,Sureterm Direct,,0);
+%partner (Swinton,m0t0rway,Swinton,,0);
+%partner (Swinton,m0t0rway,Bullseye,Swinton,1);
+%partner (Swinton,m0t0rway,Its4me,Swinton,1);
+%partner (Swinton,m0t0rway,Diva,Swinton,1);
+%partner (Swinton,m0t0rway,Motor Insurance Warehouse,Swinton,1);
+%partner (Swiftcover,swiftbird,Swiftcover,,0);
+%partner (Swiftcover,swiftbird,Axa,Swiftcover,1);
+%partner (TPF,everton,Tesco Bank,,0);
+%partner (Tesco Bank Box, suDa!m3t, Tesco Bank Box,,0);
+%partner (The Policy Shop,bu773r,The Policy Shop,,0);
+%partner (UKI,everton,Lloyds TSB,,0);
+%partner (UKI,everton,Prudential,Lloyds TSB,1);
+
+/* Home */
+
+options mprint mlogic;
+
+%macro partnerh(Partner,password,brand,parent,addbrand);
+options noxwait noxsync missing=0;
+
+x "F:\PROGRA~1\MICROS~1\OFFICE11\EXCEL.EXE";
+
+data _null_;
+x=sleep(2);
+run;
+
+filename DDEcmd dde 'excel|system' notab;
+
+    data _null_;
+        format command $100.;
+        file DDEcmd;
+        if &addbrand = 1 then
+        command = '[OPEN("'||"D:\Partner_Packs\WPS\Tesco Compare Dashboard - &partner. home.xls"||'",1,,,"'||""||'","'||""||'")]';
+        else if &addbrand = 0 then
+        command = '[OPEN("'||"D:\Partner_Packs\WPS\Partner Pack template2.xls"||'",1,,,"'||""||'","'||""||'")]';
+        put command;
+    run;
+
+data _null_;
+x=sleep(3);
+run;
+
+data _null_;
+file ddecmd;
+if &addbrand = 1 then
+do;
+command = "[workbook.copy(""&parent"",""Tesco Compare Dashboard - &partner. home.xls"",1)]";
+put command;
+end;
+run;
+
+data _null_;
+x=sleep(1);
+run;
+
+data _null_;
+file ddecmd;
+put '[workbook.insert(3)]';
+run;
+
+data _null_;
+length fname $140.;
+if &addbrand = 1 then
+fname = "excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner. home.xls]macro1!r1c1:r100c1";
+else fname = "excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]macro1!r1c1:r100c1";
+call symput('fname',trim(fname));
+run;
+
+data _null_;
+length parent2 $27.;
+parent2 = "&parent";
+call symput('parent2',trim(parent2));
+run;
+%put &parent2;
+
+filename xlmacro dde "&fname" notab lrecl=200;
+
+data _null_;
+file xlmacro;
+if &addbrand = 1 then
+do;
+str = "'=workbook.name(""&parent2 (2)"",""&brand"")'";
+end;
+else
+do;
+str = "'=workbook.name(""KPIs"",""&brand"")'";
+end;
+call symput('str',str);
+put str;
+run;
+
+data _null_;
+x=sleep(1);
+run;
+
+data _null_;
+file xlmacro;
+put &str;
+put '=halt(true)';
+put '!dde_flush';
+file ddecmd;
+put '[run("macro1!r1c1")]';
+put '[error(false)]';
+run;
+filename xlmacro clear;
+
+data _null_;
+x=sleep(2);
+run;
+
+data _null_;
+file ddecmd;
+put '[workbook.delete("macro1")]';
+run;
+
+data _null_;
+length h1 $140.;
+if &addbrand = 1 then
+h1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner. home.xls]&brand. !R3C7";
+else h1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R3C7";
+call symput('h1',trim(h1));
+run;
+
+filename head1 dde "&h1" notab lrecl=1000;
+
+data _null_;
+file head1;
+command = "&brand. Home KPI's";
+put command;
+run;
+
+data _null_;
+length data1 $140.;
+if &addbrand = 1 then
+data1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner. home.xls]&brand. !R11C2:R13C42";
+else data1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R11C2:R13C42";
+call symput('data1',trim(data1));
+run;
+
+filename data clear;
+filename data dde "&data1" notab;
+
+data _null_;
+file ddecmd;
+put '[select("R11C2:R13C42")]';
+put '[clear(3)]';
+put '[select("r1c1")]';
+run;
+
+data _null_;
+set testing.home_YEARLY2;
+where lowcase(left(translate(Prodname,'',"'"))) = lowcase("&brand");
+file data notab lrecl=1000;
+put YearNum'09'xRQST'09'xREQ_SENT_LESS_R'09'xREQ_SENT_R'09'xREQ_SENT'09'xper_quotes_submtd'09'xRspe'09'xprem_ret_per'09'x
+RSPE_LESS_R'09'xper_qt'09'xpos1_per'09'xpos2_per'09'xpos3_per'09'xavg_rank'09'xSD_Clicks'09'x
+SD_Click_per'09'xDEV_CLICKS'09'xDEV_CLICK_per'09'xpos1_click_per'09'xpos2_click_per'09'xpos3_click_per'09'xAVG_CLC_Prem'09'x
+AVG_Premium'09'xResponse_Time'09'xTIMEDOUT'09'xTIMEDOUT_LESS_R'09'xfailed_RESP'09'xfailed_resp_r'09'xquotability_ranking'09'x
+top_price_ranking'09'xclick_ranking'09'xtop5_click_ranking'09'xover5_click_ranking'09'xunique_quotes'09'xunique_clicks'09'xunique_click_per'09'x
+sales'09'xcust_to_sale_per'09'xcust2sale_ranking'09'xclick_to_sale_per'09'xclick2sale_ranking;
+run;
+
+data _null_;
+length data1 $140.;
+if &addbrand = 1 then
+data1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner. home.xls]&brand. !R18C2:R29C42";
+else data1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R18C2:R29C42";
+call symput('data1',trim(data1));
+run;
+
+filename data clear;
+filename data dde "&data1" notab;
+
+data _null_;
+file ddecmd;
+put '[select("R18C2:R29C42")]';
+put '[clear(3)]';
+put '[select("r1c1")]';
+run;
+
+data _null_;
+set testing.home_monthly2;
+where lowcase(left(translate(Prodname,'',"'"))) = lowcase("&brand");
+file data notab lrecl=1000;
+put MonthYear'09'xRQST'09'xREQ_SENT_LESS_R'09'xREQ_SENT_R'09'xREQ_SENT'09'xper_quotes_submtd'09'xRspe'09'xprem_ret_per'09'x
+RSPE_LESS_R'09'xper_qt'09'xpos1_per'09'xpos2_per'09'xpos3_per'09'xavg_rank'09'xSD_Clicks'09'x
+SD_Click_per'09'xDEV_CLICKS'09'xDEV_CLICK_per'09'xpos1_click_per'09'xpos2_click_per'09'xpos3_click_per'09'xAVG_CLC_Prem'09'x
+AVG_Premium'09'xResponse_Time'09'xTIMEDOUT'09'xTIMEDOUT_LESS_R'09'xfailed_RESP'09'xfailed_resp_r'09'xquotability_ranking'09'x
+top_price_ranking'09'xclick_ranking'09'xtop5_click_ranking'09'xover5_click_ranking'09'xunique_quotes'09'xunique_clicks'09'xunique_click_per'09'x
+sales'09'xcust_to_sale_per'09'xcust2sale_ranking'09'xclick_to_sale_per'09'xclick2sale_ranking;
+run;
+
+data _null_;
+length data1 $140.;
+if &addbrand = 1 then
+data1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner. home.xls]&brand. !R34C2:R86C34";
+else data1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R34C2:R86C34";
+call symput('data1',trim(data1));
+run;
+
+filename data clear;
+filename data dde "&data1" notab;
+
+data _null_;
+file ddecmd;
+put '[select("R34C2:R86C34")]';
+put '[clear(3)]';
+put '[select("r1c1")]';
+run;
+
+data _null_;
+set testing.home_weekly;
+where lowcase(left(translate(Prodname,'',"'"))) = lowcase("&brand") and week>=today()-365.25;
+file data notab lrecl=1000;
+put Week'09'xRQST'09'xREQ_SENT_LESS_R'09'xREQ_SENT_R'09'xREQ_SENT'09'xper_quotes_submtd'09'xRspe'09'xprem_ret_per'09'x
+RSPE_LESS_R'09'xper_qt'09'xpos1_per'09'xpos2_per'09'xpos3_per'09'xavg_rank'09'xSD_Clicks'09'x
+SD_Click_per'09'xDEV_CLICKS'09'xDEV_CLICK_per'09'xpos1_click_per'09'xpos2_click_per'09'xpos3_click_per'09'xAVG_CLC_Prem'09'x
+AVG_Premium'09'xResponse_Time'09'xTIMEDOUT'09'xTIMEDOUT_LESS_R'09'xfailed_RESP'09'xfailed_resp_r'09'xquotability_ranking'09'x
+top_price_ranking'09'xclick_ranking'09'xtop5_click_ranking'09'xover5_click_ranking;
+run;
+
+data _null_;
+length data1 $140.;
+if &addbrand = 1 then
+data1 = "Excel|D:\Partner_Packs\WPS\[Tesco Compare Dashboard - &partner. home.xls]&brand. !R91C2:R456C34";
+else data1 = "Excel|D:\Partner_Packs\WPS\[Partner Pack template2.xls]&brand. !R91C2:R456C34";
+call symput('data1',trim(data1));
+run;
+
+filename data clear;
+filename data dde "&data1" notab;
+
+
+
+data _null_;
+file ddecmd;
+put '[select("R91C2:R456C34")]';
+put '[clear(3)]';
+put '[select("r1c1")]';
+run;
+
+data _null_;
+set testing.home_daily;
+where lowcase(left(translate(Prodname,'',"'"))) = lowcase("&brand") and date>=today()-365;
+file data notab lrecl=1000;
+put date'09'xRQST'09'xREQ_SENT_LESS_R'09'xREQ_SENT_R'09'xREQ_SENT'09'xper_quotes_submtd'09'xRspe'09'xprem_ret_per'09'x
+RSPE_LESS_R'09'xper_qt'09'xpos1_per'09'xpos2_per'09'xpos3_per'09'xavg_rank'09'xSD_Clicks'09'x
+SD_Click_per'09'xDEV_CLICKS'09'xDEV_CLICK_per'09'xpos1_click_per'09'xpos2_click_per'09'xpos3_click_per'09'xAVG_CLC_Prem'09'x
+AVG_Premium'09'xResponse_Time'09'xTIMEDOUT'09'xTIMEDOUT_LESS_R'09'xfailed_RESP'09'xfailed_resp_r'09'xquotability_ranking'09'x
+top_price_ranking'09'xclick_ranking'09'xtop5_click_ranking'09'xover5_click_ranking;
+run;
+
+data _null_;
+x=sleep(2);
+run;
+
+data _null_;
+file DDEcmd;
+put '[error(false)]';
+put '[save.as("'"D:\Partner_Packs\WPS\Tesco Compare Dashboard - &partner. home.xls"'",1,"")]';
+run;
+
+data _null_;
+x=sleep(3);
+run;
+
+data _null_;
+file ddecmd;
+put '[FILE-CLOSE("D:\Partner_Packs\WPS\Tesco Compare Dashboard - &partner. home.xls")]';
+run;
+
+data _null_;
+x=sleep(3);
+run;
+
+data _null_;
+file ddecmd;
+put '[QUIT]';
+run;
+
+%mend partnerh;
+
+%partnerh (AA,AA1S,AA,,0);
+%partnerh (Amex,amex1,Amex,,0);
+/*%partnerh (Admiral,n3lson,Admiral,,0);*/
+%partnerh (Barclays,3x3rc153,Barclays,,0);
+%partnerh (Budget,ceiling,Budget,Budget,0);
+%partnerh (Budget,ceiling,Bradford & Bingley,Budget,1);
+%partnerh (Budget,ceiling,Click,Budget,1);
+%partnerh (Budget,ceiling,Post Office,Budget,1);
+%partnerh (Coverdirect,barr13r,Cover direct,,0);
+%partnerh (Diamond,jew3l,Diamond,,0);
+%partnerh (Endsleigh,ch3lt3nham,Endsleigh,,0);
+%partnerh (esure,tescoesure,esure,,0);
+%partnerh (esure,tescoesure,Sheilas  Wheels,esure,1);
+%partnerh (Elephant,el3Phan1,Elephant,,0);
+%partnerh (Hastings,seaside,Renew,,0);
+%partnerh (Hastings,seaside,Likewise,Renew,1);
+%partnerh (Hastings,seaside,Insure,Renew,1);
+%partnerh (Hastings,seaside,Insure Pink,Renew,1);
+%partnerh (Hastings,seaside,Hastings Direct,Renew,1);
+%partnerh (IGO4,IGO41,IGO4,,0);
+%partnerh (IGO4,IGO41,IGO4 Essentials,IGO4,1);
+%partnerh (Kwik-Fit,lynchp1n,Kwik Fit,,0);
+%partnerh (Key Connect,c0nnect,Key Connect,,0);
+%partnerh (Legal & General,r75Medre,Legal and General Essentials,,0);
+%partnerh (Legal & General,r75Medre,Legal and General Extra,Legal and General Essentials,1);
+%partnerh (Lloyds,h0rses,Lloyds,,0);
+%partnerh (Lloyds,h0rses,Halifax Home,Lloyds,1);
+%partnerh (More Than,more36,More Than,,0);
+%partnerh (Policy Expert,pr0f3ssional,Policy Expert,,0);
+%partnerh (RBSI,everton,Churchill,,0);
+%partnerh (RBSI,everton,Privilege,Churchill,1);
+%partnerh (RBSI,everton,Privilege Platinum,Churchill,1);
+%partnerh (RAC,br3akd0wn,RAC insurance,,0);
+%partnerh (Swiftcover,swiftbird,Swiftcover,,0);
+%partnerh (Swiftcover,swiftbird,Axa,Swiftcover,1);
+%partnerh (Swinton,m0t0rway,Swinton,,0);
+%partnerh (TPF,everton,Tesco Bank,,0);
+/*%partnerh (TPF,everton,Tesco Finest,Tesco Bank,1);*/
+/*%partnerh (TPF,everton,Tesco Value,Tesco Bank,1);*/
+%partnerh (UKI,everton,Prudential,,0);
 
 </code>
 </pre>
