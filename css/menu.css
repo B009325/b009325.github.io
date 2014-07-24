@@ -164,7 +164,7 @@ ul.sub-menu > li > a.parent {
 	display: block; /* show the submenu */
 }
 
-@media all and (max-width: 700px) {
+@media all and (max-width: 0px) {
 
 	#navigation {
 		position: static;
