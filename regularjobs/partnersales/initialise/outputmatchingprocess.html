@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/******************************************************************************/
+%macro OutputMatchingResults;
+/******************************************************************************/
+%if &Syserr > 0 %then %goto exit;
+/******************************************************************************/
+/* Delete any records for currently matched partners in Sales Load */
+/******************************************************************************/
+
+/* Get List of Prodid's to delete */
+proc sql noprint;
+	%let hmGroups=;%let Groups=;%let Prods=;* if nothing found it will not overwrite last value below;
+
+	%if &HistoricalCount %then %do;
+	select distinct PartnerGroup into :hmGroups separated by " " from krust.partners a
+		join &Partner._&Type.4HM b on a.prodid=b.prodid;
+	%put "Historical Partner Groups: &hmGroups.";
+	%end;
+
+	select distinct PartnerGroup into :Groups separated by " " from &Partner._&Type.;
+	%put "Sale Partner Groups: &Groups.";
+
+	select distinct prodid into :Prods separated by "," from krust.partners 
+		where index(compress("&Groups.&hmGroups."),compress(PartnerGroup))>0 and ProdCat=propcase("&Type.");
+	%put "Products selected :&prods.";
+
+	delete from apu.Sales_Load_Sales where InvoicingProdid in (&Prods.);
+/*and BAU_LOAD_ID=.;*/
+/*	delete from apu.Sales_Load_Sales;*/
+quit;
+
+/*----------------------------------------------------------------------------*/
+* Update Email from Cust file if not there already;
+/*----------------------------------------------------------------------------*/
+* Report count first;
+proc sql noprint;
+select 
+	count(*) into :Blank_Emails_tobe_Updated 
+from KrustySales n
+join dw_dim.cust c on c.custid=n.CustId and scdcurrrowind=1
+where email=' ' or %strcomp(email,"1@1.co.uk")
+;
+quit;
+
+*if any found;
+%if &Blank_Emails_tobe_Updated %then %do;
+* Update Emails;
+proc sql noprint;
+	update KrustySales n
+	set email = (select emailaddr from dw_dim.cust c where c.custid=n.CustId and scdcurrrowind=1)
+	where email=' ' or %strcomp(email,"1@1.co.uk");
+quit;
+
+data _null_;file print; Title;
+	put "&Blank_Emails_tobe_Updated. records had their email address updated.";
+run;
+%end;
+/*----------------------------------------------------------------------------*/
+* Process Sales and Cancellations;
+/*----------------------------------------------------------------------------*/
+%if &Syserr > 0 %then %goto exit;
+* Get Field list for the output file ;
+proc sql noprint;
+	select name into :fields separated by "," from sashelp.vcolumn 
+		where upcase(libname)=upcase('apu') and upcase(memname)=upcase('sales_load_sales') 
+			and name ne 'ModifiedDate'
+;quit;
+
+proc sql;
+insert into apu.Sales_Load_Sales
+select &fields.,%sas2dtkey(today()) as ModifiedDate 
+	from KrustySales;
+quit;
+
+/*----------------------------------------------------------------------------*/
+* Process Historicals Cancellations ;
+/*----------------------------------------------------------------------------*/
+%if &HistoricalCount. %then %do;
+proc sql;
+/*insert into apu.Sales_Load_Sales*/
+/*select * from krust.Sales*/
+/*where Salesid in (select bau_Sales_id from &partner._&type.4HM)*/
+/*;*/
+create table HistoricalSales as 
+select * from krust.Sales
+where Salesid in (select bau_Sales_id from &partner._&type.4HM)
+;
+
+update HistoricalSales
+set HistoricalYear=&Year. , HistoricalMonth=&month. , 
+	SaleStatusId=3, SaleStatus='HISTORIC CANCELATION',
+	ModifiedDate=%sas2dtkey(today()), BAU_load_id=. /* Reset Load id so we can tell if exported to Alan */
+	,  CancelledDate = (select %sas2dtkey(CancelD) from &partner._&type.4HM where bau_Sales_id=SalesId)
+where Salesid in (select bau_Sales_id from &partner._&type.4HM);
+quit;
+
+proc append base=apu.Sales_Load_Sales  data=HistoricalSales;
+run;
+%end;
+
+/*******************************************************************/
+/* Processing for Stuff not in Krust.Quotes */
+/*******************************************************************/
+proc sql;
+create table MissingKrustyQuotes as 
+select DISTINCT /*lazy programmers suck*/
+	a.prodcat, a.custid, a.quoteid, 
+	coalesce(t.Cust_CC_Holder,0) as CC, 
+	case when index(PromMktgCd,'GI')>0 then input(substr(left(PromMktgCd),6,1),1.) else 0 end as GI label='GI User',
+	case when index(upcase(PromMktgCd),'MOB')>0 then 1 else 0 end as Mobile label='Mobile User',
+	c.prommktgcd, c.resol
+
+from apu.sales_load_sales a
+left outer join krust.carqutnrqst c on a.custid=c.custid and a.quoteid=c.qutnid
+left outer join DW_bau.Clubcard_Tracker_t t on 'Car'=prod_category and a.custid=t.custid and a.quoteid=t.qutnid 
+where a.quoteid>0 and a.CC=.
+;
+quit;
+
+
+proc sql;
+update apu.sales_load_sales as a
+set 
+	CC=(select CC from MissingKrustyQuotes b where a.prodcat=b.prodcat and a.custid=b.custid and a.quoteid=b.quoteid),
+	GI=(select GI from MissingKrustyQuotes b where a.prodcat=b.prodcat and a.custid=b.custid and a.quoteid=b.quoteid),
+	Mobile=(select Mobile from MissingKrustyQuotes b where a.prodcat=b.prodcat and a.custid=b.custid and a.quoteid=b.quoteid)
+where a.quoteid>0 and a.CC=.
+;
+quit;
+/*******************************************************************/
+/* Update Missing Sale Dates */
+/*******************************************************************/
+data apu.sales_load_sales;
+set apu.sales_load_sales;
+
+	if SaleDate=. then do;
+		SaleDate=QuoteDate;
+		MissingSaleDate='Y';
+	end;
+
+	if SaleDate>&EOMdtkey. then do;
+		SaleDate=&EOMdtkey.;
+		MissingSaleDate='Y';
+	end;
+
+	if SaleDate<&SOMdtkey. then do;
+		SaleDate=&SOMdtkey.;
+		MissingSaleDate='Y';
+	end;
+	
+run;
+
+/*proc sql;*/
+/*select saledate, count(*) as freq from apu.sales_load_sales group by saledate;*/
+/*select saledate, count(*) as freq from tester group by saledate;*/
+/*quit;*/
+/******************************************************************************/
+* Report the results;
+/******************************************************************************/
+data _toTemp;x=1;run;
+proc sql;
+title "Output Results";
+select
+	(select count(*) from KrustySales where salestatusID=1) as Sales format=comma11.,
+	(select count(*) from KrustySales where salestatusID=2) as Cancels format=comma11.
+	%if &HistoricalCount %then %do;
+	,	(select count(*) from &partner._&type.4HM) as HCancels format=comma11.
+	%end;
+from _toTemp;
+quit;
+
+%exit: 
+%mend;
+
+</body>
+</html>
