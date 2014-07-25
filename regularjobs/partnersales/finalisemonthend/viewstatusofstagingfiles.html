@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%macro FileLoadSummary;
+
+data _totemp;x=1;run;
+proc sql noprint;
+select sum(net) into :CSsales from krust.controlsheet where year=&year. and month=&month.;
+
+create table summary as 
+select
+	'Staging table' as Source,
+	(select count(*) from itch.bau_sales_stg where SaleStatusId=1) as Sales,
+	(select count(*) from itch.bau_sales_stg where SaleStatusId=2) as Cancels,
+	(select count(*) from itch.bau_sales_stg where SaleStatusId=3) as HCancels
+from _totemp
+union
+select
+	'Sales Load' as Source,
+	(select count(*) from apu.sales_load_sales where SaleStatusId=1) as Sales,
+	(select count(*) from apu.sales_load_sales where SaleStatusId=2) as Cancels,
+	(select count(*) from apu.sales_load_sales where SaleStatusId=3) as HCancels
+from _totemp
+union
+select
+	'Krusty Sales' as Source,
+	(select count(*) from krust.sales where SaleStatusId=1 and saleyear=&year. and salemonth=&Month.) as Sales,
+	(select count(*) from krust.sales where SaleStatusId=2 and saleyear=&year. and salemonth=&Month.) as Cancels,
+	(select count(*) from krust.sales where SaleStatusId=3 and historicalyear=&year. and historicalmonth=&Month.) as HCancels
+from _totemp
+union
+select
+	'Sales BAU' as Source,
+	(select count(*) from dw_bau.bau_sales_t where transactiontype='SALE' and submittedyear=&year. and submittedmonth=&Month.) as Sales,
+	(select count(*) from dw_bau.bau_sales_t where transactiontype='CANCELLATION' and submittedyear=&year. and submittedmonth=&Month.) as Cancels,
+	(select count(*) from dw_bau.bau_sales_t where transactiontype = "HISTORIC CANCELATION" and historicalyear=&year. and historicalmonth=&Month.) as HCancels
+from _totemp;
+quit;
+
+proc sql;Title "To Be Loaded";
+select
+	'Sales Load' as Source,
+	(select count(*) from apu.sales_load_sales where SaleStatusId=1 and bau_load_id=.) as Sales,
+	(select count(*) from apu.sales_load_sales where SaleStatusId=2 and bau_load_id=.) as Cancels,
+	(select count(*) from apu.sales_load_sales where SaleStatusId=3 and bau_load_id=.) as HCancels
+from _totemp
+quit;
+
+data Summary;
+set summary;
+	NetSales = Sales-Hcancels;
+	CSSales=&CSSales.;
+	Diff=NetSales-CSSales;
+run;
+
+Title "File Load Summary";
+proc sql;select * from summary;quit;
+
+
+
+%mend;
+
+
+
+proc sql;
+title "Load Control";
+SELECT * from itch.bau_load_Control_t where loadtype='SALES';
+
+/*title "Stagin Records";*/
+/*SELECT count(*) label="Records Found" from itch.bau_sales_stg;*/
+quit;
+
+%FileLoadSummary;
+
+proc sql outobs=5;
+title "Import Audit - Recent Records";
+SELECT 
+	BAU_Load_ID label="Load",
+	Load_Type label="Type",
+	Load_Comments label="Comment", 
+	Load_Stg_Row_Count label="Input Rows", 
+	Load_Live_Insert_Count label="Updated Rows", 
+	substr(put(Start_Time,datetime18.),1,7) label="Date",
+	substr(put(Start_Time,datetime18.),11,5) label="Time"
+
+from dw_bau.bau_imports_audit_t  order by BAU_Load_ID desc;
+QUIT;
+
+
+/* Load and Sale Id's*/
+title "Load Id's";
+proc sql;
+select
+	(select max(bau_load_id) from apu.sales_load_sales) as LoadId label="Max SalesLoad Load Id",
+	(select max(bau_load_id) from krust.sales) as LoadId label="Max Krusty Load Id"
+from _totemp;
+quit;
+
+
+
+/*proc sql; select distinct transactiontype from dw_bau.bau_sales_t;quit;*/
+
+</body>
+</html>
