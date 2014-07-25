@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+LIBNAME Scratch BASE "E:\DI_Scratch" ;  
+/*----------------------------------------------------------------------------------------------------------------*/
+/* Report on the Sales Load files */
+
+
+%Build_SalesLoadSummary;
+/*proc sql;select * from dw_dim.prod where prodid in (100021300,100011200);quit;*/
+
+Title "Total Sales for &year. &month.";
+proc sql; select sum(netsales) as Total_Net_Sales from salesloadsummary;quit;
+
+Title "Product Summary of Loaded Sales";
+proc sql;
+select 
+	prodcat,
+	sum(grosssales) as GrossSales, sum(cancels) as Cancels, sum(netsales) as NetSales,
+	sum(xSales+xCancellation) as UnMatched,
+	sum(HCancelled) as HCancelled
+from salesloadsummary
+group by prodcat
+;
+quit;
+
+Title "Partner Summary of Loaded Sales";
+proc sql;
+select 
+	partnergroup, partnername, prodcat,
+	sum(grosssales,0) as GrossSales, sum(cancels,0) as Cancels, sum(netsales,0) as NetSales,
+	sum(xSales+xCancellation,0) as UnMatched,
+	sum(HCancelled,0) as HCancelled
+from salesloadsummary
+group by partnergroup, prodcat, partnername
+order by partnergroup, prodcat, partnername
+;
+quit;
+
+
+
+
+</body>
+</html>
