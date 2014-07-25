@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/*
+
+	Macro to compare the fields of two files.  Lists fields unique to each file and all fields to each file.
+
+%let FileA=dw_dim.HomePrpty;
+%let FileB=dw_etldw.etl_HomePrpty_Exception;
+*/
+%macro FileFieldCompare(FileA, FileB);
+
+%if Not %sysfunc(exist(&fileA.)) %then %do;
+	%put ERROR: &fileA. NOT FOUND;
+%end; 
+%else %do;
+	%if Not %sysfunc(exist(&fileB.)) %then %do;
+		%put ERROR: &fileB. NOT FOUND;
+	%end; 
+	%else %do;
+
+data _null_;
+	x="&fileA.";
+	y=substr(x,index(x,".")+1, length(x)-index(x,"."));
+	call symput('FieldNameA',y);
+
+	x="&FileB.";
+	y=substr(x,index(x,".")+1, length(x)-index(x,"."));
+	call symput('FieldNameB',y);
+run;
+
+data colsA;
+   	length FileName Field &FieldNameA. $100.;
+   	drop dsid i rc;
+
+	dsid=open("&FileA.","i");
+   	num=attrn(dsid,"nvars");
+
+	FileName="&FileA.";
+	do i=1 to num;
+	   Field=trim(varname(dsid,i));
+	   &FieldNameA.=Field;
+   
+		output;
+	end; *doooo;
+
+    rc=close(dsid);
+	keep FileName Field &FieldNameB.;
+run;
+
+data colsB;
+   	length FileName Field &FieldNameB. $100.;
+   	drop dsid i rc;
+
+	dsid=open("&FileB.","i");
+   	num=attrn(dsid,"nvars");
+
+	FileName="&FileB.";
+	do i=1 to num;
+	   Field=trim(varname(dsid,i));
+	   &FieldNameB.=Field;
+   
+		output;
+	end; *doooo;
+
+    rc=close(dsid);
+	keep FileName Field &FieldNameB.;
+run;
+
+proc sort data=colsa;by field;run;
+proc sort data=colsb;by field;run;
+
+data results;
+merge colsa colsb;
+by field;
+
+drop filename;
+run;
+
+data uniqueresults;
+merge colsa(in=a) colsb(in=b);
+by field;
+if not a or not b;
+drop filename;
+run;
+
+proc datasets lib=work nolist nodetails;
+	delete colsa colsb;
+run;
+%end;%end;
+%mend;
+
+</body>
+</html>
