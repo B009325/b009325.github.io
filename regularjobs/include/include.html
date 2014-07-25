@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/* Clear teh variable to allow rerunning of include
+
+%symdel _IncludeOnlyOnce;
+*/
+/*---------------------------------------------------------------------------*/
+/*
+
+	Runs all the % include statements in this folder
+
+*/
+/*---------------------------------------------------------------------------*/
+/*
+	%let IncludeOnlyOnce=; 
+*/
+%global IncludeOnlyOnce _IncludeSystem _IncludeLocation _DevIncludeLocation _LiveIncludeLocation _IncludeCodeDir _User;
+
+/* Global Data Sources */
+%global _MOE _ITCH; 
+
+%macro IncludeOnlyOnce;
+
+/* Only Run the Include process if it hasnt already been run */
+%if "&IncludeOnlyOnce." ne "Included for the now" %then %do;
+
+%let IncludeOnlyOnce=Included for the now;
+
+/*---------------------------------------------------------------------------*/
+/* Determine if LIVE or DEV */
+/*---------------------------------------------------------------------------*/
+%let _IncludeSystem=DEV;
+%let _IncludeCodeDir=Development;
+%let _IncludeLocation=E:\DI_SCRATCH\WPS CODE\DEVELOPMENT;
+%let _DevIncludeLocation=E:\DI_SCRATCH\WPS CODE\DEVELOPMENT;
+%let _LiveIncludeLocation=E:\DI_SCRATCH\WPS CODE\LIVE;
+
+	%if not %symexist(_DI_ENV) %then %let _DI_ENV=DEV;
+
+	data _null_;
+		if lowcase("&SYSUSERID.")="uktcl02sasdemo" 
+			or "&_DI_ENV."="LIVE"
+/*			or lowcase("&SYSUSERID.")="ik74" */
+			then do;
+			
+				call symput('_IncludeCodeDir',"LIVE");
+				call symput('_IncludeSystem',"LIVE");
+				call symput('_IncludeLocation',"&_LiveIncludeLocation.");
+		end;
+	run;
+
+/*	%put &SysUserId.;
+	%put &_IncludeLocation.;
+	%put &_IncludeSystem.;
+	%put &_IncludeCodeDir.;
+*/
+/*---------------------------------------------------------------------------*/
+/* Determine Real User */
+filename un pipe 'echo %user%';
+
+data _null_;
+	infile un truncover;
+	input d $4.;
+	call symput('_User',d);
+run;
+
+/*---------------------------------------------------------------------------*/
+/* LIVE and DEVELOPMENT Includes */
+/*---------------------------------------------------------------------------*/
+	LIBNAME DW_AGG ODBC    DATASRC=DW_TC  				SCHEMA=AGG ;
+	LIBNAME DW_BAU ODBC    DATASRC=DW_TC_BAU_Imports  	SCHEMA=DBO ;
+	LIBNAME DW_DIM ODBC    DATASRC=DW_TC  				SCHEMA=DIM ;
+	LIBNAME DW_ETLDW ODBC  DATASRC=DW_TC  				SCHEMA=ETLDW ;
+	LIBNAME DW_FACT ODBC   DATASRC=DW_TC  				SCHEMA=FACT ;
+	
+	LIBNAME RepData  "E:\DI_Scratch\Report Data" ;
+	LIBNAME Scratch  "E:\DI_Scratch\WPS Scratch" ; 
+	/*LIBNAME Krust    "E:\DI_Scratch\Krust" ;*/
+	LIBNAME Apu      "E:\DI_Scratch\Apu" ;
+	
+	LIBNAME cea_dash  "D:\SFCEA_HOME_wps\data\cea_dash" access=readonly;
+	LIBNAME cea_dim   "D:\SFCEA_HOME_wps\data\cea_dim"  access=readonly;
+	LIBNAME cea_fact  "D:\SFCEA_HOME_wps\data\cea_fact" access=readonly;
+	LIBNAME cea_stat  "D:\SFCEA_HOME_wps\data\cea_stat" access=readonly;
+	LIBNAME cea_mast  "D:\SFCEA_HOME_wps\data\cea_mast" access=readonly;
+	LIBNAME cea_nway  "D:\SFCEA_HOME_wps\data\cea_nway" access=readonly;
+	LIBNAME cea_path  "D:\SFCEA_HOME_wps\data\cea_path" access=readonly;
+	LIBNAME cea_scor  "D:\SFCEA_HOME_wps\data\cea_scor" access=readonly;
+	LIBNAME cea_smry  "D:\SFCEA_HOME_wps\data\cea_smry" access=readonly;
+	
+	LIBNAME LIVEMOE   ODBC  	DATASRC=MOE   				SCHEMA=DBO ;
+	LIBNAME LIVEITCH  ODBC  	DATASRC=DW_TC_SCRATCH		SCHEMA=DBO ;
+	LIBNAME DEVMOE   ODBC  		DATASRC=MOE_DEV   			SCHEMA=DBO ;
+	LIBNAME DEVITCH  ODBC  		DATASRC=DW_TC_SCRATCH_DEV	SCHEMA=DBO ;
+/*---------------------------------------------------------------------------*/
+/* LIVE Includes */
+/*---------------------------------------------------------------------------*/	
+%if "&_IncludeSystem."="LIVE" %then %do;
+	LIBNAME MOE ODBC  		DATASRC=MOE   			SCHEMA=DBO ;
+	LIBNAME ITCH ODBC  		DATASRC=DW_TC_SCRATCH  	SCHEMA=DBO ;
+	
+	%let _MOE=MOE;
+	%let _ITCH=DW_TC_SCRATCH;
+%end;	
+/*---------------------------------------------------------------------------*/
+/* DEVELOPMENT Includes */
+/*---------------------------------------------------------------------------*/
+%if "&_IncludeSystem."="DEV" %then %do;
+	LIBNAME MOE ODBC  		DATASRC=MOE_DEV		  		SCHEMA=DBO ;
+	LIBNAME ITCH ODBC  		DATASRC=DW_TC_SCRATCH_DEV  	SCHEMA=DBO ;
+
+	%let _MOE=MOE_DEV;
+	%let _ITCH=DW_TC_SCRATCH_DEV;
+%end;
+
+/*---------------------------------------------------------------------------*/
+/* Other Includes */
+/*---------------------------------------------------------------------------*/
+
+%include "E:\DI_SCRATCH\WPS Code\Live\Include\Mini Macros.sas"; *Date conversion macros;
+%include "E:\DI_SCRATCH\WPS Code\Live\Include\RemoveR.sas";		*Remove rate raiders via cust id;
+%include "E:\DI_SCRATCH\WPS Code\Live\Include\DirList.sas";		*Macros to list contents of a directory to a table;
+%include "E:\DI_SCRATCH\WPS Code\Live\Include\safe_delete.sas";	*Delete files but keeps last three as copies;
+
+/* Speed Trap Macros */
+%include "E:\DI_SCRATCH\WPS Code\Live\Include\SiteConfISP.sas"; 			*create list of Site Confidence or Gomez testing process SAS ISP dimensions for removal from visits file;
+%include "E:\DI_SCRATCH\WPS Code\Live\Include\Campaign.sas"; 				*pass file with campaign dim and referrer dim to append standarised Campaign elements;
+%include "E:\DI_SCRATCH\WPS Code\Live\Include\Create_sas_ObjectLink_dim_Ext.sas"; *Create extension version of the dim file;
+%include "E:\DI_SCRATCH\WPS Code\Live\Include\Create_sas_Content_dim_Ext.sas";*Create extension version of the dim file;
+ 
+/*---------------------------------------------------------------------------*/
+/* Include Macro */
+/*---------------------------------------------------------------------------*/
+
+%Macro Minclude(IncludeFile);
+	%if "&_IncludeSystem."="DEV" and %sysfunc(fileexist(&_DevIncludeLocation.&IncludeFile.)) %then %do;
+		%put "Development include found for &IncludeFile."; 
+		%include "&_DevIncludeLocation.&IncludeFile.";
+	%end; %else %do;
+		%include "&_LiveIncludeLocation.&IncludeFile.";
+	%end;
+%mend;
+
+%Minclude(\log processing\log processing.sas);
+
+%end;
+%mend; 
+
+%IncludeOnlyOnce;
+
+</body>
+</html>
