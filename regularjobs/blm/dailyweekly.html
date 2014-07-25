@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+
+/****************************************************************/
+
+%include 'E:\DI_Scratch\Include\Include.sas';
+
+/****************************************************************/
+
+/* Calculate start date (30 day rolling period) */
+data _null_;
+start_dt=intnx('dtday',%sysfunc(datetime()),-30);
+call symput('start_dt',start_dt);
+run;
+
+%put &start_dt.;
+
+data TRAFFIC_DATA;
+set itch.TRAFFIC_DATA(keep=sasdate wc GROUP: VISITS startcar carquote starthome homequote);
+sdate = datepart(sasdate);
+weekcomm = datepart(wc);
+format sdate weekcomm date9. ;
+where sasdate>=&start_dt.;
+if Grouptype= "AFFILIATE" and GROUPplacement in ('CAR' 'HOME') then GROUPcreative='MSE';
+run;
+
+/* Daily Macro - summarize each type by day */
+%macro daily(ctype,lev1,lev2);
+
+proc summary data=TRAFFIC_DATA nway;
+where Grouptype= "&ctype.";
+class sdate &lev1. &lev2.;
+var VISITS startcar carquote starthome homequote;
+output out=&ctype._daily(drop=_type_ _freq_ rename=( &lev1.=lev1 &lev2.=lev2) )sum=;
+run;
+
+data &ctype._daily;
+retain sdate lev1 lev2 VISITS startcar carquote starthome homequote;
+set &ctype._daily;
+run;
+
+%mend daily;
+
+%daily(AFFILIATE, GROUPcreative,GROUPplacement);
+%daily(ORGANIC_SEARCH,GROUPplacement, GROUPcreative);
+/*%daily(PPC,GROUPcampaign ,GROUPcreative);*/
+/*%daily(DISPLAY,GROUPplacement,GROUPcreative);*/
+
+/* Weekly Macro - summarize each type by week */
+%macro Weekly(ctype,lev1,lev2);
+
+
+proc summary data=TRAFFIC_DATA nway;
+where Grouptype= "&ctype.";
+class weekcomm &lev1. &lev2.;
+var VISITS startcar carquote starthome homequote;
+output out=&ctype._weekly(drop=_type_ _freq_ rename=( &lev1.=lev1 &lev2.=lev2) )sum=;
+run;
+
+
+data &ctype._weekly;
+retain weekcomm lev1 lev2 VISITS startcar carquote starthome homequote;
+set &ctype._weekly;
+run;
+
+%mend weekly;
+
+%weekly(AFFILIATE, GROUPcreative,GROUPplacement);
+%weekly(ORGANIC_SEARCH,GROUPplacement, GROUPcreative);
+/*%weekly(PPC,GROUPcampaign ,GROUPcreative);*/
+/*%weekly(DISPLAY,GROUPplacement,GROUPcreative);*/
+
+/* Housekeeping */
+proc datasets lib=work nolist nodetails;
+delete TRAFFIC_DATA;
+run;
+
+</body>
+</html>
