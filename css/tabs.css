@@ -159,12 +159,16 @@
     transition: all ease-out 0.2s 0.1s;
 }
 
-.content div h2,
+.content div h2 {
+	color: #398080;
+	line-height: 10px;
+	font-size:14px;	
+	}
 .content div h3{
 	color: #398080;
 	line-height: 10px;
 	font-size:12px;
-}
+	}
 .content div p {
 	font-size: 13px;
 	line-height: 10px;
