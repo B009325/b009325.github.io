@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+
+
+/*---------------------------------------------------------------------------------------*/
+/*-- You have to run the Partner Validation part first as this uses its constants  ------*/
+/*-- You also have to run the Total Request valdation as it uses the Daily_Volumes ------*/
+/*---------------------------------------------------------------------------------------*/
+
+/* Date values from the Partner Validation Code */
+data Checkdates;
+
+	ErrChk_SD=&ErrChk_StartDate.;
+	ErrChk_ED=&ErrChk_EndDate.;
+	
+	Sample_SD=&Sample_StartDate.;
+	Sample_ED=&Sample_EndDate.;
+
+	Today=&today.;
+	Max_std=&max_std.;
+	Min_std=&min_std.;
+	CheckRng=&checkrange.;
+run;
+/*******************************************************************************************************/
+/* Build GI Quotes */
+/*******************************************************************************************************/
+
+
+/* Create GI Daily Counts */
+proc sql;
+create table GI_Count as 
+select 
+	QuoteDate, 
+	ProdCat,
+	count(*) as GI_Count,
+	(select rqst from Daily_Volumes dv where dtkey=QuoteDate and dv.ProdCat=gi.ProdCat) as Total_Count,
+	calculated GI_count/calculated Total_Count as GI_Percent
+from GI_Quotes gi
+group by QuoteDate, ProdCat
+order by QuoteDate, ProdCat
+;
+quit;
+/*******************************************************************************************************/
+/* Create GI Type Daily Counts */
+proc sql;
+create table GI_Type_Count as 
+select 
+	input(put(QuoteDate,8.),yymmdd8.) as Date format yymmddd10.,
+	ProdCat,
+	GI,
+	count(*) as GI_Count	
+from GI_Quotes
+where QuoteDate>=&ErrChk_StartDate. and QuoteDate<=&ErrChk_EndDate. 
+group by QuoteDate, ProdCat,GI
+order by QuoteDate, ProdCat, GI
+;
+quit;
+/*******************************************************************************************************/
+/* Insert Dummy records to force zero's for any missing values */
+/*******************************************************************************************************/
+%macro insert_Dummies(Date, ProdCat, PromMktgCd);
+proc sql noprint;
+select count(*) into :Found from GI_Type_Count where Date=&Date. and ProdCat=&ProdCat. and Gi=&PromMktgCd.;
+/*PromMktgCd=&PromMktgCd.;*/
+quit;
+
+%if NOT &Found. %then %do;
+
+proc sql;
+insert into GI_Type_Count set
+	Date=&Date.,
+	ProdCat=&ProdCat.,
+	gi=&PromMktgCd.,
+	GI_Count=0
+;
+quit;
+%end;
+
+%mend;
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car',1);
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car',2);
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car',3);
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car',4);
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car',5);
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home',1);
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home',2);
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home',3);
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home',4);
+%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home',5);
+
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car','GICAR1');*/
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car','GICAR2');*/
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car','GICAR3');*/
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car','GICAR4');*/
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Car','GICAR5');*/
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home','GIHOME1');*/
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home','GIHOME2');*/
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home','GIHOME3');*/
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home','GIHOME4');*/
+/*%insert_Dummies(input(put(&ErrChk_StartDate.,8.),yymmdd8.),'Home','GIHOME5');*/
+
+proc sort data=GI_Type_Count;
+by Date ProdCat GI;
+run;
+
+/*******************************************************************************************************/
+/* Transpose CAR for Reporting */
+proc transpose data=GI_Type_Count out=GI_Type_Count_Transpose_Car prefix=GICAR;
+by Date;
+id GI;
+var GI_count;
+where ProdCat='Car';
+run;
+
+data GI_Type_Count_Transpose_Car;
+set GI_Type_Count_Transpose_Car;
+drop _name_;
+run;
+/* Transpose HOME for Reporting */
+proc transpose data=GI_Type_Count out=GI_Type_Count_Transpose_Home prefix=GIHOME;
+by Date;
+id GI;
+var GI_count;
+where ProdCat='Home';
+run;
+
+data GI_Type_Count_Transpose_Home;
+set GI_Type_Count_Transpose_Home;
+drop _name_;
+run;
+/*******************************************************************************************************/
+/* Create Ranges */
+/*******************************************************************************************************/
+proc sort data=GI_Count;
+by ProdCat QuoteDate;
+run;
+
+proc univariate data=GI_Count noprint;
+where QuoteDate <= &Sample_EndDate.;
+by ProdCat;
+var GI_Percent;
+output out=GI_univar_output 
+	QRANGE=QRANGE_GI_Percent 
+	q1=min_GI_Percent 
+	q3=max_GI_Percent
+;
+run;
+
+/* Calculate and Output the Results */
+proc sql;
+create table GI_Results as 
+select 
+	GI.QuoteDate label='Date',
+	GI.ProdCat,
+	GI_Percent  format=Percent8.2,
+	GI_Count label='GI',
+	total_count,
+	(min_GI_Percent - (&volmin_std. * QRANGE_GI_Percent)) as LBound format=percent8.2,
+	(max_GI_Percent + (&volmax_std. * QRANGE_GI_Percent)) as UBound format=percent8.2,
+
+	case when GI_Percent > calculated UBound then 'Abnormally Large'
+	when GI_Percent < calculated LBound then 'Abnormally Small'
+	else 'Within Normal Bounds.' end as State
+
+	from GI_Count GI
+	join GI_univar_output UN on UN.ProdCat=GI.ProdCat
+
+	where QuoteDate>=&ErrChk_StartDate. and QuoteDate<=&ErrChk_EndDate. 
+;
+quit;
+
+
+/****************************************************************/
+/* Change the column headings to reflect where they are in GI website */
+data GI_TYPE_COUNT_TRANSPOSE_CAR;
+set GI_TYPE_COUNT_TRANSPOSE_CAR;
+label 
+	GICAR1='1 Pre Quote'
+	GICAR2='2 Your Quotes'
+	GICAR3='3 About Your Policy'
+	GICAR4='4 Post Quote'
+	GICAR5='5 Decline';
+run;
+
+data GI_TYPE_COUNT_TRANSPOSE_HOME;
+set GI_TYPE_COUNT_TRANSPOSE_HOME;
+label 
+	GIHOME1= '1 Pre Quote'
+	GIHOME2= '2 Your Quotes'
+	GIHOME3= '3 About Your Policy'
+	GIHOME4= '4 Post Quote'
+	GIHOME5= '5 Decline';
+RUN;
+
+</body>
+</html>
