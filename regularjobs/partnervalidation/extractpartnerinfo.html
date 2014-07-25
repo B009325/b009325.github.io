@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/*
+- Header ---------------------------------------------------------------------------
+Program		:       Partner validation warnings
+Author		:   	Murdo Macleod
+Customer	: 		TC MI
+Scheduling	: 		Daily
+
+- Requirements ---------------------------------------------------------------------
+	Report on the Partner data and show any abnormal values.
+
+- Benefits -------------------------------------------------------------------------
+	For validation of Tesco Compare and Partner processes.
+
+- Notes ----------------------------------------------------------------------------
+
+
+- Change Log -----------------------------------------------------------------------
+Date    	StaffId  				Description  
+02/02/2012	IK74 Murdo Macleod		First Build
+01/05/2012 	ik74 Murdo Macleod		Changed so that it no longer uses Partner Data as a source
+									but extracts this from the data warehouse.  
+
+									This enables Rate Raiders to be excluded at Custid level.
+
+------------------------------------------------------------------------------------
+/****************************************************************/
+%global ErrChk_StartDate ErrChk_EndDate Sample_StartDate Sample_EndDate today max_std min_std checkrange;
+%global max_std_Returned min_std_Returned min_tolerance max_tolerance BaseDate;
+
+
+/****************************************************************/
+/* Date Calculation*/
+/****************************************************************/
+/*
+	Sample_StartDate <--> Sample_EndDate 
+		This is the Date Range used as a data sample to calculate the valid ranges
+		for each partner.  Values falling outside this range will generate a warning.
+		The checkrange variable defines its 'width' in days and its end date is always 
+		the day before the first date to check for errors, (ErrChk_EndDate-1).
+
+	ErrChk_StartDate <--> ErrChk_EndDate 
+		Range for validating Partner data for warnings.  
+		The range is Yesterday backwards to the prior working day.
+*/
+%global Today;
+%macro SetDates;
+data _null_;
+%if &_IncludeCodeDir.=LIVE %then %do;
+	today=today();
+%end; 
+%else %do;
+	today=today()-30;
+%end;
+
+	call symput('BaseDate',1*put(today-7,yymmddn8.));
+	call symput('Today',1*put(today,yymmddn8.));
+
+/* ErrChk_EndDate = Yesterday */
+	call symput('ErrChk_EndDate',put(intnx('days',today,-1,'S'),yymmddn8.));
+run;
+%mend;
+%SetDates;
+
+/****************************************************************/
+/* constants */
+/****************************************************************/
+/* deviation sample range in DAYS */
+%let checkrange=30; 
+
+/* Standard deviation multiplier */
+%let max_std=1.5; 
+%let min_std=1.5; 
+
+/* Percentage Tolerance - cumulative with the deviation */
+%let max_tolerance=0.1; 
+%let min_tolerance=0.1; 
+
+/* Quotes Returned Specific values*/
+%let max_std_Returned=1; 
+%let min_std_Returned=1; 
+
+proc sql noprint;
+	/* ErrChk_StartDate = Last working day before today */
+	select max(dtkey) into :ErrChk_StartDate from dw_dim.date 
+	where &Basedate. le dtkey lt &Today.
+		and isholidayind='N'
+		;
+quit;
+/***********************************************/
+/* For Testing only */
+/*%let ErrChk_StartDate = 20140700; */
+/***********************************************/
+
+data _null_;
+/* Calculate Sample dates */
+	call symput('Sample_EndDate', put(intnx('days',input(&ErrChk_StartDate.,anydtdte12.),-1,'S'),yymmddn8.)); 
+	call symput('Sample_StartDate', put(intnx('days',input(&ErrChk_StartDate.,anydtdte12.),-1-&checkrange,'S'),yymmddn8.)); 
+run;
+
+data Checkdates;
+
+	ErrChk_SD=&ErrChk_StartDate.;
+	ErrChk_ED=&ErrChk_EndDate.;
+	
+	Sample_SD=&Sample_StartDate.;
+	Sample_ED=&Sample_EndDate.;
+
+	Today=&today.;
+	Max_std=&max_std.;
+	Min_std=&min_std.;
+	CheckRng=&checkrange.;
+run;
+%put _all_;
+/********************************************************************************************************/
+/* Extract Data */
+
+proc sql;
+create table Clicks as 
+select ProdCat, ClickDate, ClickType, QuoteDate, ClickKey, ResponseKey, Prodid 
+from Moe.Clicks
+where ClickDate >= &Sample_StartDate. and ClickDate <= &ErrChk_EndDate.
+;
+run;
+
+proc sql;
+create table Quotes as 
+select
+	ProdCat, QuoteKey, Custid, QuoteId, QuoteDate, GI, CC
+from Moe.Quotes 
+where Interactive=1 and QuoteSts='COMPLETE'
+	AND QuoteDate >= &Sample_StartDate. and QuoteDate <= &ErrChk_EndDate.
+;
+quit;
+
+data GI_Quotes;
+set Quotes (where=(GI<>0));
+run;
+
+data Responses;
+set Moe.ResponseRejects Moe.Responses;
+
+where Interactive=1 
+	and QuoteDate >= &Sample_StartDate. and QuoteDate <= &ErrChk_EndDate.;
+	
+keep  ProdCat ResponseKey ProdId QuoteKey Custid QuoteId QuoteDate 
+	GI CC Mobile ResponseRank RejectSts RejectStsId;
+
+	if RejectStsId=. then do
+		RejectStsId=1;
+		RejectSts='SUCCESS';
+	end;
+	
+	ResponseRank=coalesce(ResponseRank,99);
+	rename RejectSts=ResponseSts;
+	rename RejectStsId=ResponseStsId;
+run;
+
+/********************************************************************************************************/
+/* BUILD UP SOME STATS */
+/********************************************************************************************************/
+/* Quotes per day */
+proc sql;
+create table Quotes_per_Day as 
+select 
+	ProdCat, QuoteDate, Count(*) as Quotes
+from Quotes
+group by ProdCat, QuoteDate
+;
+quit;
+
+/* Partner Response Frequency */
+proc sql;
+create table Partner_Response_Frequency as 
+select
+	QuoteDate, ProdCat, Prodid,	ResponseSts,
+	Count(*) as Response_frequency
+from Responses
+group by QuoteDate, ProdCat, Prodid, ResponseSts
+;
+quit;
+
+option missing=0;
+
+proc transpose data=Partner_Response_Frequency out=Partner_Response_Frequency_T;
+by QuoteDate ProdCat Prodid;
+id ResponseSts;
+var Response_frequency;
+run;
+
+/* Partner Top Three Frequency */
+proc sql;
+create table Partner_TopThree_Frequency as 
+select
+	QuoteDate,
+	ProdCat,
+	ProdId,
+	Count(*) as TopThree
+from Responses
+where ResponseRank <= 3 and ResponseRank > 0
+group by QuoteDate,	ProdCat, Prodid, ResponseSts
+;
+quit;
+
+/* Clicks */
+proc sql;
+create table Clicks_Summary as 
+select 
+	ClickDate as QuoteDate, Prodid, ProdCat,
+	count( ClickKey ) as Clicks
+from Clicks
+group by ClickDate, ProdCat, Prodid 
+;
+run;
+
+/********************************************************************************************************/
+/* Merge The Results */
+/********************************************************************************************************/
+data Partner_Information_temp;
+merge  Partner_Response_Frequency_T Partner_TopThree_Frequency Clicks_Summary;
+by QuoteDate ProdCat ProdId;
+run;
+
+/* Remove Missing Tags on Zero Values */
+data Partner_Information_temp;
+set Partner_Information_temp;
+	Success = sum(Success,0);	
+	Filtered = sum(Filtered,0);	
+	Declined = sum(Declined,0);	
+	TimedOut = sum(TimedOut,0);	
+	Failure = sum(Failure,0);	
+	TopThree = sum(TopThree,0);	
+	Clicks = sum(Clicks,0);	
+run;
+
+proc sql;
+create table Partner_Full_Data as 
+select
+	Q.QuoteDate,
+	t.ProdCat,
+	t.ProdId,
+	p.Prodname,
+	p.prodkey,
+	Quotes,
+	Success as Responses, 
+	Filtered, Declined,TimedOut,Failure,
+	TopThree as TopThree_Count,
+	Clicks as Clicks_Count,
+	(Filtered/Quotes) as Quotes_Filtered format percent8.2,
+	(Success/(Quotes-filtered)) as Quotes_Returned format percent8.2,
+	(TopThree/Success) as TopThree format percent8.2,
+	(Clicks/Success) as Bnp format percent8.2
+	
+from Quotes_per_Day Q
+left outer join Partner_Information_temp T on Q.QuoteDate=T.QuoteDate and q.prodcat=t.prodcat
+join dw_dim.Prod p on t.ProdId=p.ProdId and scdcurrrowind=1 and onoffind=1
+order by q.QuoteDate desc, prodid
+;
+quit;
+
+/* These will mass produce errors if we don't do this, they will still be reported tho */
+proc sql;
+delete from Partner_Full_Data where Responses = 0;
+quit;
+
+/*----------------------------------------------------------------------------------------------------------------*/
+/* Text Slider */
+/*----------------------------------------------------------------------------------------------------------------*/
+%let sMark=X;
+%let eMark=X;
+%let Dash=-;
+%let Mark=0;
+
+%macro TextSlider(PosVal, LowerVal, UpperVal,length);
+%let Inc=%eval((&UpperVal-&LowerVal)/&Length);
+%let x=%eval(&lowerval);
+%let OutString=&sMark;
+
+%do %while(&PosVal > &x And &UpperVal > &x );
+	%let OutString=&OutString.&Dash;
+	%let x=%eval(&x+&Inc);
+%end;
+
+%let OutString=&OutString.&Mark;
+
+%do %while(&x < &UpperVal);
+	%let OutString=&OutString.&Dash;
+	%let x=%eval(&x+&Inc);
+%end;
+
+%let OutString=&OutString.&eMark;
+&OutString
+
+%mend TextSlider;
+
+</body>
+</html>
