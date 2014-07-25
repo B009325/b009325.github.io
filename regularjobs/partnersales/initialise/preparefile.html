@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+
+/*----------------------------------------------------------------------------------------------------------------*/
+/*	Preparefile.	Performs finally adjustments to the file prior to matching, Part 2. */
+/*----------------------------------------------------------------------------------------------------------------*/
+%global DuplicateDeletions;
+options mprint mlogic;
+%let DuplicateDeletions=1;
+
+%Macro PrepareFile;
+%let program_start=%sysfunc(time(),time8.0);
+%put &program_start.;
+
+Title "Preperation Process for &Partner. part of group &PartnerGroup. type &type.";
+data _null_;file print; put " Time started:	&program_start.";
+run;
+
+* Force Error if file not found;
+proc sql noprint; select count(*) into :rcds from  &Partner._&Type.;quit;
+	%if &rcds=0 %then %do;
+		data _null_;file print; title;
+		put "ERROR: No records found in &Partner._&Type.";
+		run;
+	%goto exit;
+%end;
+%put &SysErr;
+%if &SysErr %then %goto exit;
+
+/*----------------------------------------------------------------------------*/
+* Add the Unique Key (Unkey) to each record to uniquely identify them;
+data &Partner._&Type.;
+set &Partner._&Type.;
+
+format UnKey $200.;
+
+	 if	sum(length("&partner."),
+		length(compress(upcase(fname))),
+		length(compress(upcase(sname))),
+		length(compress(upcase(Pcode))),
+		length(upcase(compress(email))),
+		length(compress(PolicyRef)),
+		length(compress(QuoteRefA)),
+		length(compress(QuoteRefB)),8)
+	<197 then 
+		UnKey=
+		compress(catx(" ","&partner.",
+		compress(upcase(fname)),
+		compress(upcase(sname)),
+		compress(upcase(Pcode)),
+		upcase(compress(email)),
+		compress(PolicyRef),
+		compress(QuoteRefA),
+		compress(QuoteRefB),
+		put(Dob,yymmddn8.),_N_
+	));
+	 else
+	 	UnKey=
+		compress(catx(" ","&partner.",
+		compress(upcase(fname)),
+		compress(upcase(sname)),
+		compress(upcase(Pcode)),
+		compress(PolicyRef),
+		compress(QuoteRefA)
+		,_N_
+		)) ;
+run;
+
+proc sort data=&Partner._&Type.;
+by Unkey;
+run;
+/*----------------------------------------------------------------------------*/
+/* Check for future dates in Purchase date or Quote date */
+%let rcds=0;
+proc sql noprint;
+select count(*) into :rcds from &partner._&type. where PurchD > today() or QuoteD > today();
+quit;
+%if &Rcds>0 %then %do;
+	Title "Invalid Purchase or Quote Dates.  Blame excel now.";
+	data _null_;
+	file print;
+		put "Future purchase or quote dates were found.";
+		put "Definatley an excel issue as it is rubbish on at least &rcds. occasions.";
+	run;
+/*	%goto exit;*/
+%end;
+
+/*----------------------------------------------------------------------------*/
+* Build List of Possible ProdId Codes;
+proc sql noprint;
+
+	* Select all ProdIds for the Partner Group;
+	create table &partner._&type._Partners as 
+	select 
+		case when invoicingbrand ne '' then  invoicingbrand  
+		else Prodname end 
+		as ProdName,
+		prodid
+	from krust.Partners where %strcomp(PartnerGroup,"&PartnerGroup.") and %strcomp(Prodcat,"&Type.");
+
+
+	*Check we have ProdIds to play with;
+	%let rcds=0;
+	select count(*) into :rcds from &partner._&type._Partners;
+quit;
+
+%if &Rcds=0 %then %do;
+	Title "Partner Group &PartnerGroup. not found";
+	data _null_;
+	file print;
+		put "No Prodids found for &Partner. product category &type.";
+		put "Check the PartnerGroup macro variable is set correctly.";
+	run;
+	%goto exit;
+%end;
+
+/*----------------------------------------------------------------------------*/
+* HistoricalCancellations Processing;
+* Create file listing Historical matches (&Partner._&Type.4HM) and update the &Partner._&Type. file;
+%HistoricalCancellations;
+
+/******************************************************************************/
+* Error Checking and Reporting pre build ;
+/******************************************************************************/
+* Remember initial stats;
+proc sql noprint;
+	select count(*) into :Impfile_Records from IMP_FILE;
+	select count(*) into :Imported_Records from &Partner._&Type.;
+	select count(*) into :Imported_Live from &Partner._&Type. where status='Live';
+	select count(*) into :Imported_Cancelled from &Partner._&Type. where status='Cancelled';
+	select count(*) into :Imported_HCancelled from &Partner._&Type. where status='HCancelled';
+quit;
+
+/*----------------------------------------------------------------------------*/
+* Check Excel has not converted Policy Refs or Quote Refs to the power of +10;
+%let Excel_Power=0;
+proc sql noprint;
+select Count(*) into :Excel_Power 
+from &partner._&type.
+where index(QuoteRefA,'+')>0 or index(QuoteRefB,'+')>0 or index(PolicyRef,'+')>0;
+quit;
+
+%if &Excel_Power. %then %do;
+	Title 'Excel Conversion issues Exist';
+	data _null_;
+	file print;
+		put "Excel has converted &Excel_Power. numbers into a numerical power format.";
+		put "This has Quote and/or Policy references. This will need correcting within Excel.";
+		put "To fix this change the column to numeric with zero decimal places.";
+	run;
+%end;
+
+/******************************************************************************/
+* Duplicate Sale Record Checks;
+/******************************************************************************/
+* Uses DuplicationVar to define which variable to sue for the Partner;
+* Also re-defaulted below to PolicyRef ;
+* Can only be one field.  If more needed then use DupFieldlist;
+%if not %symexist(DuplicationVar) %then 
+		%let DuplicationVar=PolicyRef;
+/* If we expect a sale and cancellation record for a cancel*/
+/*
+%if not %symexist(DuplicateDeletions) %then 
+		%let DuplicateDeletions=1; 
+*/
+* Build DupFieldList;
+* Allows extension on duplicate record criteria by Partner;
+%macro DupFieldList;
+%if "&Partner."="BUDGET" %then  %do;
+	%if "&type" = "CAR" %then Reg;	
+	%if "&type" = "HOME" %then PCode;
+%end;
+%if "&Partner."="KWIKFIT" %then  %do;
+	PolicyRef
+%end;
+%mend;
+
+* Sort the Data;
+proc sort data=&Partner._&Type.;
+by sname Prodname %DupFieldList &DuplicationVar. status;
+run;
+
+* Mark duplicate records with num;
+data &Partner._&Type._Dups;
+set &Partner._&Type.;
+by sname Prodname %DupFieldList &DuplicationVar.;
+
+	retain Num;
+	if first.&DuplicationVar. then num=0;num+1;
+	if first.&DuplicationVar. ne last.&DuplicationVar. OR num gt 1;
+run;
+
+* Remove the Duplicate Records;
+data &Partner._&Type.b &Partner._&Type._Dels;
+set &Partner._&Type.;
+by sname Prodname %DupFieldList &DuplicationVar.;
+
+	retain Num;if first.&DuplicationVar. then num=0;num+1;
+
+	if "&partner."='TESCO' then 
+		output &Partner._&Type.b;
+	else if num=2 and status='Live' then output &Partner._&Type._Dels;
+	else
+		output &Partner._&Type.b;
+run;
+
+* Macro variable so we dont have to set it for every partner;
+%let DuplicationVar=PolicyRef;
+%let DupFieldList=;
+
+
+* Save counts of duplicate records;
+proc sql noprint;select count(*) into :duplications from WORK.&partner._&type._Dups;quit;
+proc sql noprint;select count(*) into :After_duplications from &Partner._&Type.b;quit;
+proc sql noprint;select count(*) into :Deletions from WORK.&partner._&type._Dels;quit;
+
+/******************************************************************************/
+* Report on the records imported and Duplications;
+/******************************************************************************/
+data _null_;
+	call symput('Todayz',put(today(),yymmddd10.));
+run;
+
+data checks;
+	Impfile_Records = &Impfile_Records.;
+	Imported_Records=&Imported_Records.;
+	Live=&Imported_Live.;
+	Cancelled=&Imported_Cancelled.;
+	HCancelled=&Imported_HCancelled.;
+	Duplications=&Duplications.;
+	Deletions=&Deletions.;
+	After_Duplications=&After_Duplications.;
+run;
+Title " &Partner._&Type. Checks. Sent : &todayz. &program_start.";proc sql;select * from checks;quit;
+
+/*----------------------------------------------------------------------------*/
+* Report if Deletions and Cancelled do not match;
+%if %eval(&deletions. - &Imported_Cancelled.) %then %do;
+%if &DuplicateDeletions. %then %do;
+	Title 'Deletion issues Exist';
+	data _null_;
+	file print;
+		put "There should be a Live sale for each cancellation which is then deleted.";
+		put "Although not all partners do this.";		
+	run;
+%end;
+%end;
+/* Report Duplications where there should not be*/
+%if &deletions. %then %do;
+%if &DuplicateDeletions.=0 %then %do;
+Title 'Deletion issues Exist';
+	data _null_;
+	file print;
+		put "This Partner does not send a Sale record with a Cancellation.  Check why there are deleted records.";
+	run;
+%end;
+%end;
+
+
+/******************************************************************************/
+* Create Table For Matching;
+/******************************************************************************/
+* Creates a record per possible partner it can be matched on;
+proc sql;
+create table &partner._&type.4M as
+select
+	"&partner." as Partner length=50,
+	"&PartnerGroup." as PartnerGroup length=50,
+	"&type." as ProdCat length=10,
+	(select max(prodid) from &Partner._&Type._Partners p where %strcomp(b.Prodname,p.Prodname)) as ProdId format=11.,
+	b.Prodname,
+	left(email) as Email length=100,
+	left(upcase(compress(QuoteRefA))) as QuoteRefA length=50,
+	left(upcase(compress(QuoteRefB))) as QuoteRefB length=50,
+	left(upcase(compress(PolicyRef)))as PolicyRef length=50,
+	fname length=50,
+	sname length=50,
+	pcode length=20,
+	status length=20,	
+	((PurchD)) format=date9.0 as PD,
+	((StartD)) format=date9.0 as SD,
+	((QuoteD)) format=date9.0 as QD,
+	put(Dob,yymmddn8.) as Dob length=10,
+	((CancelD)) format=date9.0 as CD,
+/*	put(CancelD,yymmddn8.) as CancelD length=10,*/
+	1*AncPremium as AncPremium,
+	1*premium as Premium,
+	&Month. as Month,
+	&Year. as Year,	
+	"W" as SalesChannel  length=5,
+	UnKey 
+from &Partner._&Type.b b
+where status ne 'HCancelled' and status is not null
+order by unkey;
+quit;
+/******************************************************************************/
+* Report Prodname Volumes;
+title "Summary of Prodname Status";
+proc freq data=&Partner._&Type.b;
+tables Prodname*ProdCat*status / list missing;
+run;
+* Non Historic ProdId Volumes;
+title "Summary of Products";
+proc freq data=&Partner._&Type.4m;
+tables Prodname*Prodid*ProdCat / list missing;
+run;
+/*----------------------------------------------------------------------------*/
+* Find records without a ProdId;
+proc sql noprint; select count(*) into :NO_PRODID from &Partner._&Type.4m where ProdId=.;quit;
+
+%if &NO_PRODID. %then %do;
+title 'ERROR: Records missing ProdIds.';
+	data _null_;
+	file print;
+		put "&No_prodid. records do not have Product Id's";
+		put "This is usually because the Prodname is not set correctly during adjustment of impfile.";
+	run;
+
+	data &Partner._&Type._ProdId_Error;
+	set &Partner._&Type.4m;
+		if ProdId=.;
+	run;
+
+	proc sql;select * from &Partner._&Type._ProdId_Error;quit;
+
+%end;
+/*----------------------------------------------------------------------------*/
+* Report Partners ready for matching;
+proc sql;
+Title "These &Type. files are now ready for matching";
+select distinct memname from sashelp.vcolumn
+where index(memname,"&type.4M")>0 and libname='WORK';
+quit;
+
+/*----------------------------------------------------------------------------*/
+* Report Sample quoterefs;
+
+* Cant use the same field name twice the muppets;
+title ;
+proc sql noprint;
+select QuoteRef
+	into :sampleRefs separated by "," 
+from apu.Sales_Load_QuoteRefSample as q
+join &partner._&type._Partners p on q.Prodid=p.ProdId
+;
+quit;
+data _null_;
+file print;
+put "Sample Quote Refs for Comparison &sampleRefs.";
+run;
+/*----------------------------------------------------------------------------*/
+* Report Sample of records for Eyeballing;
+%let Rcds=0; 
+proc sql noprint;select count(*) into :Rcds from &Partner._&Type.4M;quit;
+
+* If there are more than 20 records take randomn sample or report them all;
+%if &Rcds > 20 %then %do;
+proc surveyselect data=&Partner._&Type.4M
+	method=srs n=20 out=OUTPUT noprint;
+run;
+%end;%else %do;
+	proc sql noprint;create table output as select * from &Partner._&Type.4M;quit;
+%end;
+Title 'Sample Output Produced for Matching Process';proc sql;select * from output;quit;
+
+/*----------------------------------------------------------------------------*/
+* Report Control Sheet Updating;
+title "&Partner. &Type. Update Control Sheet with these values ";
+proc sql;
+create table Prodnames as select distinct Prodname, ProdCat from &Partner._&Type.b;
+/*create table Prodnames as select distinct invoicingbrand as Prodname, upcase(ProdCat) as prodcat, Active, lastproductsale from krust.partners where partnergroup="&PartnerGroup." and upcase(prodcat)="&type.";*/
+
+select 
+	"&PartnerGroup." as PartnerGroup label "Partner Group",
+	"&Partner." as Partner, a.*,
+	(select count(*) from &Partner._&Type.b b where status in ('Live','Cancelled') and a.Prodname=b.Prodname and a.ProdCat=b.ProdCat) as GrossSales,
+	(select count(*) from &Partner._&Type.b b where status in ('HCancelled','Cancelled') and a.Prodname=b.Prodname and a.ProdCat=b.ProdCat) as Cancelled
+from Prodnames a;
+quit;
+
+title ;
+data _null_;
+file print;
+put "Reported on: &Todayz.";
+put "Reported at: &program_start.";
+run;
+
+/******************************************************************************/
+* Final processing - Clean up mess;
+%if not &Testing %then %do;
+proc sql;
+drop table checks, &partner._&type.b, output, Prodnames, &Partner._&Type._Partners;
+quit;
+
+%if not %symexists(duplications) or ( %symexists(duplications) and not &duplications.) %then %do;
+proc sql; drop table &partner._&type._dups , &partner._&type._dels ;quit;
+%end;
+
+%end;
+
+/*----------------------------------------------------------------------------*/
+* Sort file for easier reviewing;
+data imp_file;
+set imp_file;
+	sname = upcase(sname); fname=upcase(fname);
+run;
+
+proc sort data=imp_file;
+by sname fname;
+run;
+
+proc sort data=&Partner._&Type.;
+by prodname Prodname sname fname;
+run;
+
+%let DuplicateDeletions=1; 
+%exit: 
+%mend;
+
+
+
+</body>
+</html>
