@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+
+/*----------------------------------------------------------------------------------------------------------------*/
+/* Builds a summary table of this months Sales Load Files */
+%macro Build_SalesLoadSummary;
+/*----------------------------------------------------------------------------------------------------------------*/
+* Sales Load file of Sales and Cancels;
+proc sql;
+create table AllSalesLoad as 
+select 
+	InvoicingProdId as PartnerId,
+	case when CustId=. then 
+		'x'||propcase(SaleStatus) 
+	else propcase(SaleStatus) end as Status,
+	count(*) as Freq
+from apu.Sales_Load_Sales where SaleStatusId<>3
+group by PartnerId, calculated Status
+order by PartnerId, calculated Status
+;
+quit;
+
+* Histerics;
+proc sql;
+insert into AllSalesLoad
+select 
+	InvoicingProdId as PartnerId,
+	'HCancelled' as Status, 
+	count(*) as Freq
+from apu.Sales_Load_Sales
+where SaleStatusId=3
+group by PartnerId
+;
+quit;
+
+/*---------------------- Lock and Load ----------------------*/
+proc sort data=AllSalesLoad;
+by PartnerId Status;
+run;
+
+proc transpose data=AllSalesLoad out=temp;
+by PartnerId;
+id Status;
+var Freq;
+run;
+
+* Distinct PartnerNames from Partner file;
+proc sql; create table TempPartners as 
+select
+	PartnerGroup, ProdCat, prodid as Partnerid,
+	case when InvoicingBrand ne '' then InvoicingBrand
+	else Prodname end
+	as PartnerName
+from krust.Partners where current
+group by PartnerGroup, ProdCat, prodid
+;
+quit;
+
+
+proc sql;
+create table temp1 as 
+select partnergroup, partnername, prodcat, t.* from temp t
+left outer join TempPartners P on t.partnerid=p.partnerid 
+order by partnergroup, prodcat, partnername
+;
+quit;
+
+data SalesLoadSummary;
+format PartnerGroup $30. Partnername $30. PartnerId 11.0 ProdCat $4. NetSales 8.0 GrossSales 8.0 Cancels 8.0 Sales 8.0 Cancellation 8.0 HCancelled 8.0 xSales 8.0 xCancellation 8.0;
+set temp1;
+
+	Sales=sum(Sale,0);
+	Cancellation=sum(Cancellation,0);
+	HCancelled=sum(HCancelled,0);
+	xSales=sum(xSale,0);
+	xCancellation=sum(xCancellation,0);
+
+	NetSales = sum(Sales, xSales) - sum(HCancelled);
+	Cancels = sum(HCancelled, Cancellation, xCancellation);
+	GrossSales = NetSales + sum(Cancellation, xCancellation);
+
+/*	if prodcatkey=11 then ProdCat='Home'; else ProdCat='Car';*/
+	
+	drop _NAME_ sale xsale;
+run;
+
+proc datasets lib=work nolist nodetails;
+delete allsalesload temp temp1 TempPartners;
+run;
+%mend;
+/*----------------------------------------------------------------------------------------------------------------*/
+
+</body>
+</html>
