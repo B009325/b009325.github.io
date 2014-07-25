@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+******************************************************************************************************************************************************
+                                                             KWIK FIT - HOME
+******************************************************************************************************************************************************;
+
+*********************************************************************************
+        
+			KWIKFIT_HOME
+        
+        	Check Date values they will need formatting.
+
+	If the format the have sent has changed try the commented out code!
+
+*********************************************************************************;
+%let partner=KWIKFIT;*Select the name of the partner;
+%let type=HOME;*Select CAR or HOME;
+*Partner Group from control sheet;
+
+%let PartnerGroup=Kwik Fit;
+
+%ClearSalesWorkLibrary;
+
+/*%let DuplicationVar=Email;*/
+/*---------------------- Import via CSV ----------------------*/
+
+%let inpfile = &inplib.\&Partner._&Type..CSV;
+data IMP_FILE;
+  infile "&inpfile" delimiter = ',' MISSOVER DSD lrecl=32767 FIRSTOBS=2;
+
+Informat   c $100. PurchD DDMMYY10.0 QuoteRefA $100. Fname $100. Sname $100. 
+	 DoB DDMMYY10.0 Pcode $100. PolicyRef $100. Premium BEST32. QuoteD DDMMYY10.0 
+	;
+Format   c $100. PurchD YYMMDDS10. QuoteRefA $100. Fname $100. Sname $100. 
+	 DoB YYMMDDS10. Pcode $100. PolicyRef $100. Premium 8.2 QuoteD YYMMDDS10. 
+	;
+Input   c $ PurchD $ QuoteRefA $ Fname $ Sname $ 
+	 DoB $ Pcode $ PolicyRef $ Premium $ QuoteD $ 
+	;
+
+/*  Informat   PurchD DDMMYY10.0 AwardedConsName $100. AwardedDepartmentName $100. AwardedTeamName $100. PolicyRef $100. */
+/*	 WebSale $100. Rebroke $100. StartD DDMMYY10.0 PolicyEndDate $100. QuoterName $100. */
+/*	 TransactionConsultantLogin $100. TransactionConsultant $100. ParentQuoteNumber $100. QuoteD DDMMYY10.0 Insurer $100. */
+/*	 Campaign $100. MarketingReference $100. TcasSourceBusiness $100. PaymentMethod $100. OneCallClose $100. */
+/*	 PolicyType $100. QuotedPremium $100. xPremium $100. CashbackAmount $100. DiscountPercentage $100. */
+/*	 Title $100. Fname $100. Sname $100. HomePhoneNo $100. WorkPhoneNo $100. */
+/*	 MobilePhoneNo $100. Email $100. FTA $100. HasFLP $100. HasDHC $100. */
+/*	 HasCPB $100. HasCAD $100. HasBAD $100. HasPPP $100. HasKC1 $100. */
+/*	 HasKC2 $100. HasPA $100. HasIDT $100. HasFLPu $100. HasDHCu $100. */
+/*	 HasGA1 $100. HasGR1 $100. HasGR2 $100. APR $100. DoB DDMMYY10.0 */
+/*	 Pcode $100. OriginalSource $100.    */
+/*	 ;*/
+/*Format   PurchD YYMMDDS10. AwardedConsName $100. AwardedDepartmentName $100. AwardedTeamName $100. PolicyRef $100. */
+/*	 WebSale $100. Rebroke $100. StartD YYMMDDS10. PolicyEndDate $100. QuoterName $100. */
+/*	 TransactionConsultantLogin $100. TransactionConsultant $100. ParentQuoteNumber $100. QuoteD YYMMDDS10. Insurer $100. */
+/*	 Campaign $100. MarketingReference $100. TcasSourceBusiness $100. PaymentMethod $100. OneCallClose $100. */
+/*	 PolicyType $100. QuotedPremium $100. xPremium $100. CashbackAmount $100. DiscountPercentage $100. */
+/*	 Title $100. Fname $100. Sname $100. HomePhoneNo $100. WorkPhoneNo $100. */
+/*	 MobilePhoneNo $100. Email $100. FTA $100. HasFLP $100. HasDHC $100. */
+/*	 HasCPB $100. HasCAD $100. HasBAD $100. HasPPP $100. HasKC1 $100. */
+/*	 HasKC2 $100. HasPA $100. HasIDT $100. HasFLPu $100. HasDHCu $100. */
+/*	 HasGA1 $100. HasGR1 $100. HasGR2 $100. APR $100. DoB YYMMDDS10. */
+/*	 Pcode $100. OriginalSource $100.    */
+/*	 ;*/
+/**/
+/** Input Field Listings;*/
+/*Input   PurchD $ AwardedConsName $ AwardedDepartmentName $ AwardedTeamName $ PolicyRef $ */
+/*	 WebSale $ Rebroke $ StartD $ PolicyEndDate $ QuoterName $ */
+/*	 TransactionConsultantLogin $ TransactionConsultant $ ParentQuoteNumber $ QuoteD $ Insurer $ */
+/*	 Campaign $ MarketingReference $ TcasSourceBusiness $ PaymentMethod $ OneCallClose $ */
+/*	 PolicyType $ QuotedPremium $ xPremium $ CashbackAmount $ DiscountPercentage $ */
+/*	 Title $ Fname $ Sname $ HomePhoneNo $ WorkPhoneNo $ */
+/*	 MobilePhoneNo $ Email $ FTA $ HasFLP $ HasDHC $ */
+/*	 HasCPB $ HasCAD $ HasBAD $ HasPPP $ HasKC1 $ */
+/*	 HasKC2 $ HasPA $ HasIDT $ HasFLPu $ HasDHCu $ */
+/*	 HasGA1 $ HasGR1 $ HasGR2 $ APR $ DoB $ */
+/*	 Pcode $ OriginalSource $    */
+/*	 ;*/
+
+run;
+/*---------------------- Additional Formatting of Import ----------------------*/
+/*data TESTING;*/
+data &Partner._&Type.;
+	Format 	Prodname $50.  email $100.  PurchD YYMMDDs10. QuoteRefA $50. QuoteRefB $50. 
+			PolicyRef $50. AncPremium 8.2 Premium 8.2
+		 	StartD YYMMDDs10. QuoteD YYMMDDs10. Fname $50. Sname $50. PCode $20. status $20. 
+			DoB YYMMDDs10. CancelD YYMMDDs10.  ProdCat $10.
+	;
+set IMP_FILE;
+
+	Prodname = "Kwik Fit";
+	
+	QuoteRefA=ParentQuoteNumber;
+	
+	if Premium=. then Premium=1*compress(xPremium,'$£,');
+	
+	QuoteRefB=PolicyRef;
+	AncPremium=.;
+	status='Live';
+
+	CancelD=.;
+	if premium <0 then status='Cancelled';
+
+	ProdCat = "&Type.";
+
+/*	if PurchD;*/
+run;
+
+/*---------------------- Finalise for Matching ----------------------*/
+* Reminders for those that never look at code but just click and fire;
+/*data _null_;*/
+/*file print;*/
+/*	put "Reminders";*/
+/*	put "Place text here and uncomment the code for any reminders you need to remind yourelf with for this Partner.";*/
+/*run;*/
+
+
+%PrepareFile;
+
+/*
+	Premium=1*compress(WrittenPremium,'$£,');
+	ProdCat = "&Type.";
+
+	if left(name) ne '' then do
+		Fname=scan(Name,2);* has Title as first word;
+		Sname=scan(Name,length(Name)-length(compress(Name))+2); * normally +1 but due to title;
+	end;
+
+	* has Mr etc in sname;
+	if scan(upcase(sname),1) in ('MR','MRS','MISS','DR') then sname=scan(sname,2);
+
+
+	* Split the file;
+	if upcase(Product)='MOTOR' then do;
+		ProdCat = 'CAR';	
+		output &Partner._CAR1;
+	end;
+	else do;
+		ProdCat = 'HOME';	
+		output &Partner._HOME1;
+	end;
+
+	* For the two file version see FRESH;
+*/
+
+</body>
+</html>
