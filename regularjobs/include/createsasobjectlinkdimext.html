@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%macro Create_sas_ObjectLink_dim_Ext;
+
+data sas_ObjectLink_dim_Ext;
+format Group Link Provider $30.;
+set cea_dim.sas_objectlink_dimension;
+/*  -------------------------------------------     Insurance  -------------------------------------------------------------*/
+
+
+/* Business */
+if index(lowcase(hyperlink),'/business/simplybusiness.shtml') > 0 
+		then do;Group = 'Insurance';
+			 Link = 'Business Insurance';
+			 Provider = 'Simply Business';
+			 end;
+/* Business */
+if index(lowcase(hyperlink),'www.simplybusiness.co.uk/lite/dorfq/businessinsurance/1.htm?ref_id=xb13099_3') > 0 
+		then do;Group = 'Insurance';
+			 Link = 'Business Insurance';
+			 Provider = 'Simply Business';
+			 end;
+
+/* Life */
+if index(lowcase(hyperlink),'life-insurance.tescocompare.com') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Life Insurance';
+			 Provider = 'The Idol';
+			 end;
+/* Life */
+if index(lowcase(hyperlink),'quote-link.net/xml/affiliate.cfm?affiliate=tescocompare&affiliatenumber=169&type=life') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Life Insurance';
+			 Provider = 'The Idol';
+			 end;
+
+/* Van */
+if index(lowcase(hyperlink),'van-insurance.tescocompare.com') > 0
+		then do; Group = 'Insurance';
+			 Link = 'Van Insurance';
+			 Provider = 'The Van Insurer';
+			 end;
+
+/* Motorbike */
+if index(lowcase(hyperlink),'bike-insurance.tescocompare.com') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Motorbike Insurance';
+			 Provider = 'The Bike Insurer';
+			 end;
+
+/* Travel */
+if index(lowcase(hyperlink),'tescocompare-travelinsurance.com') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Travel Insurance';
+			 Provider = 'The Idol';
+			 end;
+
+/* Travel */
+if index(lowcase(hyperlink),'quote-link.net/xml/affiliate.cfm?affiliate=tescocompare&affiliatenumber=169&type=travel') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Travel Insurance';
+			 Provider = 'The Idol';
+			 end;
+
+/* Pet */
+if index(lowcase(hyperlink),'clk.atdmt.com/uag/go/179390448/direct/01') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Pet Insurance';
+			 Provider = 'Tesco';
+			 end;
+if index(lowcase(hyperlink),'www.morethan.com/pet/tesco') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Pet Insurance';
+			 Provider = 'More Than';
+			 end;
+if index(lowcase(hyperlink),'www.bdmlconnect.co.uk/debpetins/app/start.aspx?source=tescocomp') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Pet Insurance';
+			 Provider = 'Debenhams';
+			 end;
+if index(lowcase(hyperlink),'www.bdmlconnect.co.uk/pet/app/start.aspx?brand=pds') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Pet Insurance';
+			 Provider = 'PDSA Petsurance';
+			 end;
+if index(lowcase(hyperlink),'clk.atdmt.com/omd/go/179933464/direct/01/') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Pet Insurance';
+			 Provider = 'Post Office';
+			 end;
+if index(lowcase(hyperlink),'www.saga.co.uk/link.asp?to=tescocomparepetlink001') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Pet Insurance';
+			 Provider = 'Saga';
+			 end;
+
+/* Health */
+if index(lowcase(hyperlink),'www.activequote.com/tescocompare') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Health Insurance';
+			 Provider = 'Active Quote';
+			 end;
+if index(lowcase(hyperlink),'health-insurance.tescocompare.com') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Health Insurance';
+			 Provider = 'Active Quote';
+			 end;
+
+/* Gadget */
+if index(lowcase(hyperlink),'uk.protectyourbubble.com/tescocompare-gadget') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Gadget Insurance';
+			 Provider = 'Protect Your Bubble';
+			 end;
+if index(lowcase(hyperlink),'www.gadget-cover.com/linktracker.php?ri=54') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Gadget Insurance';
+			 Provider = 'Gadget Cover';
+			 end;
+
+/* Over 50s */
+if index(lowcase(hyperlink),'overfifties.tescocompare.com/xml/affiliate.cfm') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Over 50s Life Cover';
+			 Provider = 'The Idol';
+			 end;
+			 
+
+/* Breakdown */
+if index(lowcase(hyperlink),'clk.atdmt.com/uag/go/211595965/direct/01/') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Breakdown Insurance';
+			 Provider = 'Tesco';
+			 end;
+if index(lowcase(hyperlink),'www.swinton.co.uk/breakdown/?aff=tescocompare') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Breakdown Insurance';
+			 Provider = 'Swinton';
+			 end;
+if index(lowcase(hyperlink),'oqs.rescue24.com/quickquote.aspx?id=3b0154ef-cb15-47bb-97ec-147') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Breakdown Insurance';
+			 Provider = 'AXA';
+			 end;
+if index(lowcase(hyperlink),'oqs.rescue24.com/quickquote.aspx?id=5920b6f2-e7f7-4944-976f-b4a1131daa83&offername=tesco04') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Breakdown Insurance';
+			 Provider = 'Swiftcover';
+			 end;
+if index(lowcase(hyperlink),'www.greeninsurancecompany.co.uk/breakdownbol/tesco.aspx') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Breakdown Insurance';
+			 Provider = 'TGI';
+			 end;
+if index(lowcase(hyperlink),'https://breakdown-comparison.tescocompare.com') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Breakdown Insurance';
+			 Provider = 'Comparison Creator';
+			 end;
+/* Income Protection*/
+if index(lowcase(hyperlink),'income-protection.tescocompare.com/') > 0 
+		then do; Group = 'Insurance';
+			 Link = 'Income Protection';
+			 Provider = 'Activequote';
+			 end;
+
+
+
+/*  -------------------------------------------     Utilities  -------------------------------------------------------------*/
+
+/* Broadband */
+if index(lowcase(hyperlink),'broadband.consumerchoices.co.uk/?partner=tesco~tescocompare') > 0 
+		then do; Group = 'Utilities';
+			 Link = 'Broadband';
+			 Provider = 'Consumer Choices';
+			 end;
+
+/* Mobile Broadband */
+if index(lowcase(hyperlink),'broadband.consumerchoices.co.uk/?tid=3&partner=tesco~tescocompare') > 0 
+		then do; Group = 'Utilities';
+			 Link = 'Mobile Broadband';
+			 Provider = 'Consumer Choices';
+			 end;
+
+/* Home Phone */
+if index(lowcase(hyperlink),'homephone.consumerchoices.co.uk/?partner=tesco~tescocompare') > 0 
+		then do; Group = 'Utilities';
+			 Link = 'Home Phone';
+			 Provider = 'Consumer Choices';
+			 end;
+
+/* Digital TV */
+if index(lowcase(hyperlink),'digitaltv.consumerchoices.co.uk/?partner=tesco~tescocompare') > 0 
+		then do; Group = 'Utilities';
+			 Link = 'Digital TV';
+			 Provider = 'Consumer Choices';
+			 end;
+
+/* Gas & Electricity */
+if index(lowcase(hyperlink),'tescocompare.theenergyshop.com/') > 0 
+		then do; Group = 'Utilities';
+			 Link = 'Gas & Electricity';
+			 Provider = 'The Energy Shop';
+			 end;
+
+/* Mobile Phone */
+if index(lowcase(hyperlink),'mobile-comparison.tescocompare.com') > 0 
+		then do; Group = 'Utilities';
+			 Link = 'Mobile Phone';
+			 Provider = 'Recombu';
+			 end;
+/*  -------------------------------------------     Money  -------------------------------------------------------------*/
+
+/* Credit cards */
+if index(lowcase(hyperlink),'www.creditcards-tescocompare.com/') > 0 
+		then do; Group = 'Money';
+			 Link = 'Credit Cards';
+			 Provider = 'MoneyFacts';
+			 end;
+if index(lowcase(hyperlink),'tescocompare.lovemoney.com/creditcards/credit-builder') > 0 
+		then do; Group = 'Money';
+			 Link = 'Credit Cards Decline';
+			 Provider = 'Love Money';
+			 end;
+if index(lowcase(hyperlink),'tesco.lovemoney.com/creditcards') > 0 
+		then do; Group = 'Money';
+			 Link = 'Credit Cards';
+			 Provider = 'Love Money';
+			 end;
+
+/* Loans */
+if index(lowcase(hyperlink),'www.loans-tescocompare.com/') > 0 
+		then do; Group = 'Money';
+			 Link = 'Loans';
+			 Provider = 'MoneyFacts';
+			 end;
+if index(lowcase(hyperlink),'tesco.lovemoney.com/loans') > 0 
+		then do; Group = 'Money';
+			 Link = 'Loans';
+			 Provider = 'Love Money';
+			 end;
+
+/* Mortgages */
+if index(lowcase(hyperlink),'tesco.lcplc-online.co.uk/') > 0 
+		then do; Group = 'Money';
+			 Link = 'Mortgages';
+			 Provider = 'L & C Mortgages';
+			 end;
+
+/* Current Accounts */
+if index(lowcase(hyperlink),'www.currentaccounts-tescocompare.com/') > 0 
+		then do; Group = 'Money';
+			 Link = 'Current Accounts';
+			 Provider = 'MoneyFacts';
+			 end;
+if index(lowcase(hyperlink),'tesco.lovemoney.com/currentaccounts') > 0 
+		then do; Group = 'Money';
+			 Link = 'Current Accounts';
+			 Provider = 'Love Money';
+			 end;
+
+/* Savings Accounts */
+if index(lowcase(hyperlink),'www.savings-tescocompare.com/') > 0 
+		then do; Group = 'Money';
+			 Link = 'Savings Accounts';
+			 Provider = 'MoneyFacts';
+			 end;
+if index(lowcase(hyperlink),'tesco.lovemoney.com/savings') > 0 
+		then do; Group = 'Money';
+			 Link = 'Savings Accounts';
+			 Provider = 'Love Money';
+			 end;
+/*  -------------------------------------------     Holidays      ---------------------------------------------------------------------*/
+if index(lowcase(hyperlink),'holiday-comparison.tescocompare.com') > 0 
+		then do; Group = 'Holidays';
+			 Link = 'Holidays';
+			 Provider = 'Affinion';
+			 end;
+
+/*  -------------------------------------------     Car Specialist Links  -------------------------------------------------------------*/
+
+/* Classic Cars */
+if index(lowcase(hyperlink),'www.sureterm.com/classic-car-insurance.php') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Classic Cars';
+			 Provider = 'Sureterm Direct';
+			 end;
+if index(lowcase(hyperlink),'http://www.sureterm.com/classic-car-quote/tescocc') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Classic Cars';
+			 Provider = 'Sureterm Direct';
+			 end;
+if index(lowcase(hyperlink),'www.performancedirect.co.uk/at/tescoclassic') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Classic Cars';
+			 Provider = 'Performance Direct';
+			 end;
+if index(lowcase(hyperlink),'www.lancasterinsurance.co.uk/tesco') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Classic Cars';
+			 Provider = 'Lancaster Insurance';
+			 end;
+if index(lowcase(hyperlink),'http://www.insurancechoice.co.uk/ic_forward.php?product=genericuser&producttype=classic+car&ad_id=aff03018') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Classic Cars';
+			 Provider = 'Insurance Choice';
+			 end;
+
+/* 4x4 Cars */
+if index(lowcase(hyperlink),'www.sureterm.com/4x4-insurance') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = '4x4 Cars';
+			 Provider = 'Sureterm Direct';
+			 end;
+if index(lowcase(hyperlink),'www.performancedirect.co.uk/at/tesco4x4') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = '4x4 Cars';
+			 Provider = 'Performance Direct';
+			 end;
+
+/* Kit Cars */
+if index(lowcase(hyperlink),'www.sureterm.com/kit-car-insurance.php') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Kit Cars';
+			 Provider = 'Sureterm Direct';
+			 end;
+if index(lowcase(hyperlink),'www.performancedirect.co.uk/at/tescokitcars') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Kit Cars';
+			 Provider = 'Performance Direct';
+			 end;
+
+/* Foreign & Imports */
+if index(lowcase(hyperlink),'www.sureterm.com/american-classic-insurance.php') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Foreign & Imports';
+			 Provider = 'Sureterm Direct';
+			 end;
+if index(lowcase(hyperlink),'www.performancedirect.co.uk/at/tescoimport') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Foreign & Imports';
+			 Provider = 'Performance Direct';
+			 end;
+if index(lowcase(hyperlink),'insurancefactory.co.uk/scheme/tesco.php?ref=tescoimport') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Foreign & Imports';
+			 Provider = 'Insurance Factory';
+			 end;
+if index(lowcase(hyperlink),'www.insurancefactory.co.uk/tc/import-car-insurance.html?cmp=tcomp') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Foreign & Imports';
+			 Provider = 'Insurance Factory';
+			 end;
+
+/* Modified Cars */
+if index(lowcase(hyperlink),'www.performancedirect.co.uk/at/tescomodified') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Modified Cars';
+			 Provider = 'Performance Direct';
+			 end;
+if index(lowcase(hyperlink),'quotes.insurancefactory.com/corequote/faces/proposerdetails.jsp?product=1') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Modified Cars';
+			 Provider = 'Insurance Factory';
+			 end;
+if index(lowcase(hyperlink),'quotes.insurancefactory.com/corequote/faces/proposerdetails.dq?product=1&style=0&referrer=tmod&cmp=tcomp') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Modified Cars';
+			 Provider = 'Insurance Factory';
+			 end;			 
+/* Performance & Sports Cars */
+if index(lowcase(hyperlink),'www.performancedirect.co.uk/at/tescoperformance') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Performance & Sports Cars';
+			 Provider = 'Performance Direct';
+			 end;
+if index(lowcase(hyperlink),'www.insurancefactory.co.uk/scheme/tesco.php?ref=tescoperformance') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Performance & Sports Cars';
+			 Provider = 'Insurance Factory';
+			 end;
+if index(lowcase(hyperlink),'quotes.insurancefactory.com/corequote/faces/proposerdetails.jsp?product=1') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Performance & Sports Cars';
+			 Provider = 'Insurance Factory';
+			 end;
+if index(lowcase(hyperlink),'quotes.insurancefactory.com/corequote/faces/proposerdetails.dq?product=1&style=0&referrer=tp&cmp=tcomp') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Performance & Sports Cars';
+			 Provider = 'Insurance Factory';
+			 end;
+if index(lowcase(hyperlink),'http://www.insurancechoice.co.uk/ic_forward.php?product=genericuser&producttype=performance+and+sports+car&ad_id=aff03013') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Performance & Sports Cars';
+			 Provider = 'Insurance Choice';
+			 end;
+
+/* Caravans & Motorhomes */
+if index(lowcase(hyperlink),'www.sureterm.com/motorhome-quote-tescocompare.php') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Caravans & Motorhomes';
+			 Provider = 'Sureterm Direct';
+			 end;
+if index(lowcase(hyperlink),'www.sureterm.com/tr/mhome.php?source=tescomh') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Caravans & Motorhomes';
+			 Provider = 'Sureterm Direct';
+			 end;
+if index(lowcase(hyperlink),'www.performancedirect.co.uk/at/tescomotorhome') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Caravans & Motorhomes';
+			 Provider = 'Performance Direct';
+			 end;
+if index(lowcase(hyperlink),'www.caravanguard.co.uk/tesco') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Caravans & Motorhomes';
+			 Provider = 'Caravan Guard';
+			 end;
+if index(lowcase(hyperlink),'www.simplecaravaninsurance.co.uk/secure/landing.aspx') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Caravans & Motorhomes';
+			 Provider = 'Simple Insurance';
+			 end;
+if index(lowcase(hyperlink),'www.insurancefactory.co.uk/tc/motorhome-insurance.html?cmp=tcomp') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Caravans & Motorhomes';
+			 Provider = 'Insurance Factory';
+			 end;
+if index(lowcase(hyperlink),'http://www.insurancechoice.co.uk/ic_forward.php?product=caravan&type=static&ad_id=aff03012') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Caravans & Motorhomes';
+			 Provider = 'Insurance Choice Caravan';
+			 end;
+if index(lowcase(hyperlink),'http://www.insurancechoice.co.uk/ic_forward.php?product=motorhome&ad_id=aff03014') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Caravans & Motorhomes';
+			 Provider = 'Insurance Choice Motorhome';
+			 end;
+
+/* Disabled Car */
+if index(lowcase(hyperlink),'www.fishinsurance.co.uk/ttc?rm=ck&id=2') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Disabled Car Insurance';
+			 Provider = 'Fish Insurance';
+			 end;
+if index(lowcase(hyperlink),'www.fishinsurance.co.uk/disabled-car-insurance.php') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Disabled Car Insurance';
+			 Provider = 'Fish Insurance';
+			 end;
+
+/* Claims & Convictions */
+if index(lowcase(hyperlink),'www.performancedirect.co.uk/at/tescoconvicted') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Claims & Convictions';
+			 Provider = 'Performance Direct';
+			 end;
+if index(lowcase(hyperlink),'www.insurancefactory.co.uk/scheme/tesco.php?ref=tescoconviction') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Claims & Convictions';
+			 Provider = 'Insurance Factory';
+			 end;
+if index(lowcase(hyperlink),'www.thamescityreferrals.co.uk/tesco') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Claims & Convictions';
+			 Provider = 'Thames City Insurance';
+			 end;
+if index(lowcase(hyperlink),'quotes.thamescity-insurance.co.uk/corequote/faces/proposerdetails.jsp?product=1&cmp=tcomp') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Claims & Convictions';
+			 Provider = 'Thames City Insurance';
+			 end;
+if index(lowcase(hyperlink),'quotes.thamescity-insurance.co.uk/corequote/faces/proposerdetails.jsp?product=1&referrer=tcc&cmp=tcomp') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Claims & Convictions';
+			 Provider = 'Thames City Insurance';
+			 end;
+if index(lowcase(hyperlink),'http://www.insurancechoice.co.uk/ic_forward.php?product=genericuser&producttype=claims+or+convictions&ad_id=aff03011') > 0 
+		then do; Group = 'Car Specialist Links';
+			 Link = 'Claims & Convictions';
+			 Provider = 'Insurance Choice';
+			 end;
+
+/*  -------------------------------------------     Home Specialist Links  -------------------------------------------------------------*/
+
+/* Holiday Home */
+if index(lowcase(hyperlink),'www.towergatepartners.co.uk/connect/tesco.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Holiday Homes Insurance';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.towergatepartners.co.uk/connect/tesco/overseas-holiday-home/overview.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Holiday Homes Insurance';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.towergatepartners.co.uk/connect/tesco/uk-holiday-home-insurance/overview.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Holiday Homes Insurance';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.tescocompare.intasure.info') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Holiday Homes Insurance';
+			 Provider = 'Intasure';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/holiday-home-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Holiday Homes Insurance';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/tesco-holiday-homes') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Holiday Homes Insurance';
+			 Provider = 'HomeProtect';
+			 end;
+
+/* Landlord */
+if index(lowcase(hyperlink),'www.insure-systems.co.uk/newquote') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'Budget';
+			 end;
+if index(lowcase(hyperlink),'clk.atdmt.com/umc/go/tsccmmtg0010000019umc/direct/01/') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'More Than';
+			 end;
+if index(lowcase(hyperlink),'landlords.endsleigh.co.uk/') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'Endsleigh';
+			 end;
+if index(lowcase(hyperlink),'www.swinton.co.uk/home/specialist/') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'Swinton';
+			 end;
+if index(lowcase(hyperlink),'towergatenews.co.uk/go.asp?/.landingpages.connect.letproperty.tescocompare') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.towergatepartners.co.uk/connect/tesco/landlord-insurance/overview.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/landlord-house-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/tesco-landlord') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.simplybusiness.co.uk/landlord') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'Simply Business';
+			 end;
+if index(lowcase(hyperlink),'www.letsure.co.uk/lse/lhi') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'Letsure';
+			 end;
+if index(lowcase(hyperlink),'www.simplelandlordsinsurance.com/secure/webforms/landing.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Landlord Insurance';
+			 Provider = 'Simple';
+			 end;
+
+/* Student */
+if index(lowcase(hyperlink),'niche.endsleigh.co.uk/') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Student Insurance';
+			 Provider = 'Endsleigh';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/students-contents-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Student Insurance';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/tesco-student-contents') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Student Insurance';
+			 Provider = 'HomeProtect';
+			 end;
+
+/* Specialist Constructions */
+if index(lowcase(hyperlink),'towergatenews.co.uk/go.asp?/.landingpages.connect.nonstandard.tescocompare') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Specialist Constructions';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'towergatenews.co.uk/go.asp?/.landingpages.connect.underpinned.tescocompare') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Specialist Constructions';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.towergatepartners.co.uk/connect/tesco/non-standard-construction/overview.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Specialist Constructions';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/non-standard-construction-house-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Specialist Constructions';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/tesco-non-standard') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Specialist Constructions';
+			 Provider = 'HomeProtect';
+			 end;
+
+/* Business */
+if index(lowcase(hyperlink),'www.morethanbusiness.com/products/business-insurance/home-based-professionals') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Business Insurance';
+			 Provider = 'More Than';
+			 end;
+if index(lowcase(hyperlink),'business.hiscox.co.uk/') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Business Insurance';
+			 Provider = 'Hiscox';
+			 end;
+if index(lowcase(hyperlink),'towergatenews.co.uk/go.asp?/.landingpages.connect.businesshome.tescocompare') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Business Insurance';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.towergatepartners.co.uk/connect/tesco/home-business-insurance/overview.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Business Insurance';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/working-from-home-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Business Insurance';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/tesco-working-from-home') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Business Insurance';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.simplybusiness.co.uk/lite/dorfq/businessinsurance/1.htm?ref_id=xb13099_5') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Business Insurance';
+			 Provider = 'Simply Business';
+			 end;
+
+/* Unoccupied */
+if index(lowcase(hyperlink),'towergatenews.co.uk/go.asp?/.landingpages.connect.unoccupied.tescocompare') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Unoccupied Properties';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.towergatepartners.co.uk/connect/tesco/unoccupied-insurance/overview.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Unoccupied Properties';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/unoccupied-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Unoccupied Properties';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/tesco-unoccupied') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'Unoccupied Properties';
+			 Provider = 'HomeProtect';
+			 end;
+
+/* High Risk */
+if index(lowcase(hyperlink),'www.towergatepartners.co.uk/connect/tesco/high-risk-property-insurance/overview.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'High-risk Properties';
+			 Provider = 'Towergate Connect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/flooding-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'High-risk Properties';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/homeprotect-cover-for-everyone.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'High-risk Properties';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/subsidence-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'High-risk Properties';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/underpinned-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'High-risk Properties';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/home-insurance/listed-buildings-insurance.aspx') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'High-risk Properties';
+			 Provider = 'HomeProtect';
+			 end;
+if index(lowcase(hyperlink),'www.homeprotect.co.uk/tesco-high-risk') > 0 
+		then do; Group = 'Home Specialist Links';
+			 Link = 'High-risk Properties';
+			 Provider = 'HomeProtect';
+			 end;
+if Group > '' then output;
+run;
+
+%mend;
+
+</body>
+</html>
