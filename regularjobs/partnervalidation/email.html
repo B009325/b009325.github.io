@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/*
+- Header ---------------------------------------------------------------------------
+Program		:       Partner validation warnings
+Author		:   	Murdo Macleod
+Customer	: 		TC MI
+Scheduling	: 		Daily
+
+- Requirements ---------------------------------------------------------------------
+	Email the findings of the Partner validation
+
+- Benefits -------------------------------------------------------------------------
+	For validation of Tesco Compare and Partner processes.
+
+- Notes ----------------------------------------------------------------------------
+
+
+- Change Log -----------------------------------------------------------------------
+Date    	StaffId  				Description  
+06/02/2012	IK74 Murdo Macleod		First Build
+
+					
+------------------------------------------------------------------------------------
+*/
+%minclude(\Email\Email.sas);
+%Clear_old_files;
+/* Contants and variables */
+data _null;
+	call symput('FancyDate',put(intnx('days',%dtkey2sas(&today.),-1,'S'),yymmddd10.));
+run;
+
+%let subject=Daily Partner validation Report &FancyDate.; 
+/***********************************************************************************************/
+/* Text slider */
+
+%let sMark=%NRBQUOTE(&gt;);
+%let eMark=%NRBQUOTE(&lt;);
+%let Dash=---------------------------------------------------------------------------;
+%let Mark=0;
+
+%macro TextSliderString(PosVal, LowerVal, UpperVal,length);
+	%let Pos=(max((&PosVal*&Length/(&UpperVal-&LowerVal)),&Length));
+	%let Pos=(&Length/(&UpperVal-&LowerVal)*(min(&UpperVal,&PosVal)-&LowerVal));
+	
+	%let OutString="&sMark" || substr("&Dash.",1,&Pos) || "&Mark." || substr("&Dash.",1,&Length-&Pos+1) || "&eMark."; 
+
+	&OutString
+%mend;
+/***********************************************************************************************/
+/* Build Subject to include any warnings */
+/***********************************************************************************************/
+/* Customer Volume Error */
+proc sql noprint;
+	select 
+	count(*) into :cust_volume_error
+	from daily_volumes DV  
+	join daily_volumes_ranges DVR on DV.ProdCat = DVR.ProdCat and DV.weekday=DVR.weekday
+	where DV.dtkey>=&ErrChk_StartDate. and DV.dtkey<=&ErrChk_EndDate. 
+	and DV.rqst<min_request
+;
+quit;
+
+/* Quote Volume Error */
+proc sql noprint;
+	select 
+	count(*) into :quote_volume_error
+	from daily_volumes DV  
+	join daily_volumes_ranges DVR on DV.ProdCat = DVR.ProdCat and DV.weekday=DVR.weekday
+	where DV.dtkey>=&ErrChk_StartDate. and DV.dtkey<=&ErrChk_EndDate. 
+	and DV.rqst<min_request
+;
+quit;
+
+/* GI Volume Error */
+proc sql noprint;
+	select 
+		count(*) into :GI_volume_error
+	from gi_results
+	where state like('%Small');
+quit;
+
+data _null_;
+if &cust_volume_error then call symput('Subject',left("&Subject.") || ' ***CUSTOMER VOLUME WARNINGS***');
+run;
+
+data _null_;
+if &quote_volume_error then call symput('Subject',left("&Subject.") || ' ***QUOTE VOLUME WARNINGS***');
+run;
+
+data _null_;
+if &gi_volume_error then call symput('Subject',left("&Subject.") || ' ***GI QUOTE VOLUME WARNINGS***');
+put "&subject.";
+run;
+
+/***********************************************************************************************/
+/* Send the Email */
+/***********************************************************************************************/
+
+/* Freestylin */
+%SetEmailTableName;
+data &EmailTableName.;
+format rcd $256.;
+	rcd='<h1>Partner Validation Report</h1>';
+	output;
+	
+	rcd='<h1><span style="color:red;">P</span>';	output;
+	rcd='<span style="color:yellow;">a</span>';	output;
+	rcd='<span style="color:blue;">r</span>';	output;
+	rcd='<span style="color:orange;">t</span>';	output;
+	rcd='<span style="color:brown;">n</span>';	output;
+	rcd='<span style="color:red;">e</span>';	output;
+	rcd='<span style="color:yellow;">r</span>';	output;
+	rcd='<span style="color:blue;">&nbsp;</span>';	output;
+	rcd='<span style="color:orange;">V</span>';	output;
+	rcd='<span style="color:brown;">a</span>';	output;
+	rcd='<span style="color:red;">l</span>';	output;
+	rcd='<span style="color:yellow;">i</span>';	output;
+	rcd='<span style="color:blue;">d</span>';	output;
+	rcd='<span style="color:orange;">a</span>';	output;
+	rcd='<span style="color:brown;">t</span>';	output;
+	rcd='<span style="color:red;">i</span>';	output;
+	rcd='<span style="color:yellow;">o</span>';	output;
+	rcd='<span style="color:blue;">n</span></h1>';	output;
+	
+run;
+
+/* Add Comments */
+%StartEmailTxt;
+	%AddEmailTxt(Hello,);
+	%AddEmailTxt(Please see below for the daily Partner validation warnings.  See attached for related Partner data history.);
+	%EmailTxtBlankLine;
+	%AddEmailTxt(Kind regards,);
+	%AddEmailTxt(The Data And Insight Team);
+	%EmailTxtBlankLine;
+	%AddEmailTxt(This data has had RateRaider quotes estimated and removed. );
+%EndEmailTxt;
+
+/* Output warnings listings */
+/******************************************************************************************/
+/* Request Customer Volume Stats for yesterday */ 
+%EmailAddSeparator;
+proc sql;
+	title "Total Customer Volumes &today.";
+	create table CustVols as 
+	select 
+		%dtkey2sas(dtkey) as fancydate label='Date' format=yymmddd10.,
+		DV.ProdCat label='Product',
+		DV.custs label='Total Customers' format=comma11.,
+		min_custs label='LBound' format=comma11.,
+		max_custs label='UBound' format=comma11.,
+		case when DV.custs>max_custs then 'Unusually Large'
+		when DV.custs<min_custs then 'Unusually Small'
+		else 'Within normal bounds' end as Message label="Message"
+		,
+		'<span style="font-family:courier;">' ||		
+		%TextSliderString(DV.Custs,min_Custs,max_Custs,20)
+		|| '</span>' 
+		
+		as Slider label="Slider"
+
+	from daily_cust_volumes DV  
+	join daily_cust_volumes_ranges DVR on DV.ProdCat = DVR.ProdCat and DV.weekday=DVR.weekday
+
+	where DV.dtkey>=&ErrChk_StartDate. and DV.dtkey<=&ErrChk_EndDate. 
+	order by  dv.ProdCat, fancydate desc;
+quit;
+
+%let TableTitle=Total Customer Volumes;
+%BuildDetails(CustVols);
+
+/******************************************************************************************/
+/* Request Quote Volume Stats for yesterday */ 
+
+proc sql;
+	title "Total Quote Volumes";
+	create table QuoteVols as 
+	select 
+		%dtkey2sas(dv.dtkey) as fancydate label='Date' format=yymmddd10.,
+		DV.Prodcat label='Product',
+		DV.rqst label='Total Quotes' format=comma11.,
+		min_request label='LBound' format=comma11.,
+		max_request label='UBound' format=comma11.,
+		case when DV.rqst>max_request then 'Unusually Large'
+		when DV.rqst<min_request then 'Unusually Small'
+		else 'Within normal bounds' end as Message label="Message"
+
+	from daily_volumes DV  
+	join daily_volumes_ranges DVR on DV.Prodcat = DVR.prodcat and DV.weekday=DVR.weekday
+
+	where DV.dtkey>=&ErrChk_StartDate. and DV.dtkey<=&ErrChk_EndDate. 
+	order by dv.Prodcat, dv.dtkey desc;
+quit;
+
+%let TableTitle=Total Quote Volumes;
+%BuildDetails(QuoteVols);
+/*****************************************************************************************/
+/* GI Percentages */
+%EmailAddSeparator;
+
+title 'GI Quote Volumes';
+proc sql;
+create table GIVols as
+	select 
+		%dtkey2sas(QuoteDate) format=yymmddd10. label='Date',
+		Prodcat,
+		GI_count label='GI Count',
+		GI_percent label='Percent',
+		lbound label="LBound",ubound label="UBound",
+		state label='Message'
+	from gi_results
+	order by Prodcat, QuoteDate desc;
+quit;
+
+%let TableTitle=GI Quote Volumes;
+%BuildDetails(GIVols);
+/******************************************************************************************/
+data GI__T_Car;
+set GI_Type_Count_Transpose_Car;
+	label Date="Date";
+run;
+data GI__T_Home;
+set GI_Type_Count_Transpose_Home;
+	label Date="Date";
+run;
+
+%let TableTitle=GI Volumes by Code - Car;
+%BuildDetails(GI__T_Car);
+%let TableTitle=GI Volumes by Code - Home;
+%BuildDetails(GI__T_Home);
+/******************************************************************************************/
+/* Partner validation for yesterday */
+%EmailAddSeparator;
+proc sql;
+create table xErrors as 
+	select 
+		 PE.prodid label='Id'
+		,PE.prodname label= 'Partner'
+		,PE.product label= 'Product'
+		,%dtkey2sas(dtkey) as fancydate label='Date' format=yymmddd10.
+		,PE.ErrorField label= 'Field'
+		,PE.ErrorValue/100 label= 'Value' format=percent8.2		
+
+		,case
+		when PE.ErrorField = 'Filtered' then PR.min_Quotes_Filtered
+		when PE.ErrorField = 'Returned' then PR.min_Quotes_Returned
+		when PE.ErrorField = 'BuyNowPerc' then PR.min_bnp
+		when PE.ErrorField = 'TopThree' then PR.min_TopThree
+		else . end as LBound format=percent8.2 label="LBound"
+
+		,case 
+		when PE.ErrorField = 'Filtered' then PR.max_Quotes_Filtered
+		when PE.ErrorField = 'Returned' then PR.max_Quotes_Returned
+		when PE.ErrorField = 'BuyNowPerc' then PR.max_bnp
+		when PE.ErrorField = 'TopThree' then PR.max_TopThree
+		else . end as UBound format=percent8.2 label="UBound"
+
+		,PE.ErrorMessage label= 'Message'
+	from PARTNER_ERRORS PE
+	join PARTNER_RANGES PR on PE.prodid=PR.prodid
+	where pe.dtkey >= &ErrChk_StartDate. and pe.dtkey  <= &ErrChk_EndDate.
+	order by pe.product, fancydate desc, PE.prodname
+;
+quit;
+
+data xErrors;
+set xErrors;
+format RowStyle $100.;
+
+	RowStyle='color:Red;font-weight:bold';
+	if ErrorMessage eq "Lower Than Expected" then RowStyle='color:gray';
+	if ErrorMessage eq "Higher Than Expected" then RowStyle='color:gray';
+	if ErrorMessage eq "Abnormally Large" then RowStyle='color:ForestGreen;font-weight:bold;';
+run;
+
+%let TableTitle=Partner Data Validation Warnings;
+%BuildDetails(xErrors);
+
+/* Send Email */
+%macro SetEmailAtts;
+data _null_;
+%if &_IncludeCodeDir.=LIVE %then %do;
+	%let EmailToList='"05_TB_TESCOCOMPAREMITEAM@uk.tesco.com;John.Blevins@tescobank.com;  
+	Gillian.McInnes@tescobank.com;TCtstsupteam@i.tescobank.com;
+	will.furneaux@i.tescobank.com;05_TB_AM_COMPARE_SUPPORT@uk.tesco.com"';
+/*	%let EmailToList='"murdo.macleod@tescobank.com"';*/
+%end;
+%else %do;
+	%let EmailToList='"05_TB_TESCOCOMPAREMITEAM@uk.tesco.com"';
+	%let Subject=TEST &Subject.;
+%end;
+ %mend;
+%SetEmailAtts;
+
+%let EmailSubject=%DoubleWrap(WPS &Subject.);
+%put _all_;
+
+%SendEmail;
+
+</body>
+</html>
