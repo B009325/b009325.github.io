@@ -137,6 +137,7 @@
 	-o-transform: translateX(250px);
 	-ms-transform: translateX(250px);
 	transform: translateX(250px);
+	padding-left:10px;
 }
 
 .tabs input.tab-selector-1:checked ~ .content .content-1,
