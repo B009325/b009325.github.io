@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+ /*----------------------------------------------------------------------------------------------------*/
+/* SAS Date Macros */
+
+* Takes sas date and converts to numeric YYYYMMDD ;
+%macro Sas2Dtkey(sasDate);
+	(input(put(&sasDate,yymmddn8.),8.))
+%mend;
+
+* Sas Date to YYYY-MM mmm format; 
+%macro Sas2MonthPeriod(sasDate);
+	(substr(put(&sasDate.,yymmddd10.),1,7) || ' ' ||substr(LEFT(put(&sasDate.,monname.)),1,3))
+%mend;
+
+%macro Sas2DT(xDate);
+	(input(put(&xDate,date9.) || ':00.00.000000',datetime18.))
+%mend;
+
+/* Weekday Mon=1 Sun=7 */
+%macro WeekDay(sasDate);
+	(mod(weekday(&sasDate.)+5,7)+1)
+%mend;
+
+/* WeekCommencing */
+%macro WeekCommencing(sasDate);
+	(&sasDate.-mod(weekday(&sasDate.)+5,7))
+%mend;
+
+/* Earliest date you can be an age */
+%macro sasAge(Years);
+	(mdy(month(Today()),day(today()),year(today())-&Years.-1)+1)
+%mend;
+/*----------------------------------------------------------------------------------------------------*/
+/* Date Key Macros */
+
+%macro DtKey2DT(DtKey);
+	(input(put(input(put(&dtkey.,8.),anydtdte8.),date9.) || ':00.00.000000',datetime18.))
+%mend;
+
+%macro DtKey2Sas(DtKey);
+	(input(put(&dtkey.,8.),anydtdte8.))
+%mend;
+
+%macro dtkey2TC(dtkey);
+(substr(put(&dtkey,8.),1,4) || "-" || substr(put(&dtkey,8.),5,2) || "-" || substr(put(&dtkey,8.),7) || " 00:00:00.000")
+%mend;
+
+/*----------------------------------------------------------------------------------------------------*/
+/* String Macros */
+%macro mtrim(str);
+(left(right(&str)))
+%mend;
+/*----------------------------------------------------------------------------------------------------*/
+* Delete all files within the work library;
+%macro ClearWork;
+proc datasets lib=work
+nolist kill;
+quit;
+run;
+%mend;
+
+/*----------------------------------------------------------------------------------------------------*/
+* Delete all defined macro variables;
+%macro delboys;
+	%put _all_;
+	
+  data vars;
+    set sashelp.vmacro;
+  run;
+
+  data _null_;
+    set vars;
+    temp=lag(name);
+    if 	scope ne 'AUTOMATIC'
+		and substr(name,1,3) ne 'SYS' 
+		and substr(name,1,3) ne 'SAS' 
+		and substr(name,1,1) ne '_' 
+		and temp ne name 
+	then
+      call execute('%symdel ' || trim(left(name)) || ';');
+  run;
+  
+  proc datasets lib=work nolist;
+	  delete vars;/* Delete teh table of vars */
+  run;
+
+	%put _all_;
+%mend;
+/*----------------------------------------------------------------------------------------------------*/
+%macro ScratchZippitPW(file, extn, password);
+options noxwait noxsync;
+data _null_;
+  infile "\\Uktcl02tcsas01a\di_scratch\7-zip\7z.exe  a -p&password. ""\\Uktcl02tcsas01a\di_scratch\&file..zip"" ""\\Uktcl02tcsas01a\di_scratch\&file..&extn."" " pipe ;
+  input ;
+  put _infile_;
+run;
+options xwait xsync;
+%mend;
+
+%macro ScratchZippit(file, extn);
+options noxwait noxsync;
+	data _null_;
+		x='\\Uktcl02tcsas01a\di_scratch\7-zip\7z.exe  a "' 
+			|| "\\Uktcl02tcsas01a\di_scratch\&file..zip" || '" "\\Uktcl02tcsas01a\di_scratch\' 
+			|| "&file..&extn." || '"';
+		call system(x);
+	run;
+options xwait xsync;
+%mend;
+
+%macro ZippitPW(file, extn, password);
+options noxwait noxsync;
+data _null_;
+  infile "\\Uktcl02tcsas01a\di_scratch\7-zip\7z.exe  a -p&password. ""&file..zip"" ""&file..&extn."" " pipe ;
+  input ;
+  put _infile_;
+run;
+options xwait xsync;
+%mend;
+
+%macro Zippit(file, extn);
+option noxwait noxsync;
+data _null_;
+  infile "\\Uktcl02tcsas01a\di_scratch\7-zip\7z.exe  a ""&file..zip"" ""&file..&extn."" " pipe ;
+  input ;
+  put _infile_;
+run;
+options xwait xsync;
+%mend;
+
+/*----------------------------------------------------------------------------------------------------*/
+/* KeyThis */
+%macro KeyThis(ProdCat, Key);
+(&ProdCat. * 100000000000 + &key.)
+%mend;
+
+%macro SasFileExists(Filename);
+	%if %sysfunc(exist(&FileName.)) %then %do; 1
+	%end; %else %do; 0
+	%end;
+%mend;
+/*----------------------------------------------------------------------------------------------------*/
+/* Passthrough */
+%macro PassSQL(DB, SQL);
+proc sql;
+CONNECT to ODBC as DW(DSN="&DB." );
+execute 
+(
+	&SQL.
+)by dw;
+
+DISCONNECT from DW;
+QUIT;
+%mend;
+
+%macro PassSQLCreate(File, DB, SQL);
+proc sql;
+CONNECT to ODBC as DW(DSN="&DB." );
+create table &file. as select * from connection to DW
+(
+	&SQL.
+);
+
+DISCONNECT from DW;
+QUIT;
+%mend;
+
+
+/* Copy file from work to ITCH */
+%macro copytoitch(file);
+%put _all_;
+%if &syserr=0 and &syscc<5 %then %do;
+
+proc datasets lib=itch;
+delete &file;
+run;
+
+data itch.&file;
+set &file.;
+run;
+
+%end;
+
+%else %do;
+%put "Error: Copy over not complete due to error";
+%end;
+
+%mend;
+
+/* Create file directory */
+%macro createdir(dir);
+
+data _null_;
+	z='"""';
+	x=z||"&dir."||z;
+	ff="md " || x;
+	call system(ff);
+run;
+ 
+%mend createdir; 
+
+
+
+
+
+
+
+</body>
+</html>
