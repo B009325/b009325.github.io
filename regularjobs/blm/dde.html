@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+*********************************************************************************;
+/* Daily Output */
+*********************************************************************************;
+options noxwait noxsync;
+
+x "F:\PROGRA~1\MICROS~1\OFFICE11\EXCEL.EXE";
+
+data _null_;
+x=sleep(3);
+run;
+ 
+*define a filename containing the excel application;
+filename DDEcmd dde 'excel|system';
+
+	data _null_;
+		file DDEcmd;
+		command = '[OPEN("E:\DI_Scratch\BLM\Daily.xls")]';
+		put command;
+		run;
+
+data _null_;
+x=sleep(3);
+run;
+
+/*affiliate*/
+
+filename data dde "Excel|E:\DI_Scratch\BLM\[Daily.xls]affiliate!R2C1:R65536C255"; 
+
+data _null_;
+set affiliate_daily;
+file data notab lrecl=1000;
+put sdate'09'xlev1'09'xlev2'09'xVISITS'09'xStartCar'09'xCarQuote'09'xStartHome'09'xHomeQuote;
+run;
+
+/*seo*/
+
+filename data dde "Excel|E:\DI_Scratch\BLM\[Daily.xls]seo!R2C1:R65536C255"; 
+
+data _null_;
+set organic_search_daily;
+file data notab lrecl=1000;
+put sdate'09'xlev1'09'xlev2'09'xVISITS'09'xStartCar'09'xCarQuote'09'xStartHome'09'xHomeQuote;
+
+run;
+
+/*ppc*/
+
+/*filename data dde "Excel|E:\DI_Scratch\BLM\[Daily.xls]ppc!R2C1:R65536C255"; */
+/**/
+/*data _null_;*/
+/*set ppc_daily;*/
+/*file data notab lrecl=1000;*/
+/*put sdate'09'xlev1'09'xlev2'09'xVISITS'09'xStartCar'09'xCarQuote'09'xStartHome'09'xHomeQuote;*/
+/**/
+/*run;*/
+
+/*display*/
+/**/
+/*filename data dde "Excel|E:\DI_Scratch\BLM\[Daily.xls]display!R2C1:R65536C255"; */
+/**/
+/*data _null_;*/
+/*set display_daily;*/
+/*file data notab lrecl=1000;*/
+/*put sdate'09'xlev1'09'xVISITS'09'xStartCar'09'xCarQuote'09'xStartHome'09'xHomeQuote;*/
+/**/
+/*run;*/
+
+
+data _null_;
+x=sleep(3);
+run;
+
+data _null_;
+file DDEcmd;
+put '[error(false)]';
+command = '[SAVE.AS("'||"E:\DI_Scratch\BLM\Daily.xls"||'")]';
+put command;
+run;
+
+data _null_;
+x=sleep(3);
+run;
+
+data _null_;
+file ddecmd;
+put '[FILE-CLOSE("E:\DI_Scratch\BLM\Daily.xls")]';
+run;
+
+data _null_;
+x=sleep(1);
+run;
+
+data _null_;
+file ddecmd;
+put '[QUIT]';
+run;
+
+*********************************************************************************;
+/* Weekly Output */
+*********************************************************************************;
+options noxwait noxsync;
+
+x "F:\PROGRA~1\MICROS~1\OFFICE11\EXCEL.EXE";
+
+data _null_;
+x=sleep(3);
+run;
+ 
+*define a filename containing the excel application;
+filename DDEcmd dde 'excel|system';
+
+	data _null_;
+		file DDEcmd;
+		command = '[OPEN("E:\DI_Scratch\BLM\Weekly.xls")]';
+		put command;
+		run;
+
+data _null_;
+x=sleep(3);
+run;
+
+/*affiliate*/
+
+filename data dde "Excel|E:\DI_Scratch\BLM\[Weekly.xls]affiliate!R2C1:R65536C255"; 
+
+data _null_;
+set affiliate_weekly;
+file data notab lrecl=1000;
+put weekcomm'09'xlev1'09'xlev2'09'xVISITS'09'xStartCar'09'xCarQuote'09'xStartHome'09'xHomeQuote;
+run;
+
+/*seo*/
+
+filename data dde "Excel|E:\DI_Scratch\BLM\[weekly.xls]seo!R2C1:R65536C255"; 
+
+data _null_;
+set organic_search_weekly;
+file data notab lrecl=1000;
+put weekcomm'09'xlev1'09'xlev2'09'xVISITS'09'xStartCar'09'xCarQuote'09'xStartHome'09'xHomeQuote;
+
+run;
+
+/*ppc*/
+
+/*filename data dde "Excel|E:\DI_Scratch\BLM\[weekly.xls]ppc!R2C1:R65536C255"; */
+/**/
+/*data _null_;*/
+/*set ppc_weekly;*/
+/*file data notab lrecl=1000;*/
+/*put weekcomm'09'xlev1'09'xlev2'09'xVISITS'09'xStartCar'09'xCarQuote'09'xStartHome'09'xHomeQuote;*/
+/**/
+/*run;*/
+
+/*display*/
+
+/*filename data dde "Excel|E:\DI_Scratch\BLM\[weekly.xls]display!R2C1:R65536C255"; */
+/**/
+/*data _null_;*/
+/*set display_weekly;*/
+/*file data notab lrecl=1000;*/
+/*put weekcomm'09'xlev1'09'xVISITS'09'xStartCar'09'xCarQuote'09'xStartHome'09'xHomeQuote;*/
+/**/
+/*run;*/
+
+data _null_;
+x=sleep(3);
+run;
+
+data _null_;
+file DDEcmd;
+put '[error(false)]';
+command = '[SAVE.AS("'||"E:\DI_Scratch\BLM\weekly.xls"||'")]';
+put command;
+run;
+
+data _null_;
+x=sleep(3);
+run;
+
+data _null_;
+file ddecmd;
+put '[FILE-CLOSE("E:\DI_Scratch\BLM\weekly.xls")]';
+run;
+
+data _null_;
+x=sleep(1);
+run;
+
+data _null_;
+file ddecmd;
+put '[QUIT]';
+run;
+
+
+
+
+</body>
+</html>
