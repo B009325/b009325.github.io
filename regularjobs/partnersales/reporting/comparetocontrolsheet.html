@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/****************************************************************/
+* Report on teh Sales Files;
+/****************************************************************/
+/*libname DI "E:\DI_Scratch\sales data\&year.\&month.\Output\";*/
+
+/*Defined in Initialise*/
+%Build_SalesLoadSummary;
+/* Defined Under Controlsheet Improt*/
+%ImportControlSheet;
+
+data _null_;
+	Today=put(today(),yymmddd10.);
+	call symput('Today',Today);
+run;
+
+/*---------------------- Compare Sales Load to Control Sheet ----------------------*/
+proc sql;
+* Comparison to Control Sheet;
+create table comparison as 
+select 
+	PartnerGroup, PartnerName, PartnerId, ProdCat, 
+	s.NetSales as Loaded,
+	coalesce((select sum(net) as net from krustcontrolsheet c where c.ProdId=s.PartnerID
+			and c.year=&year. and c.month=&Month.),0) as ControlSheet
+	,s.netsales-calculated ControlSheet as Diff
+/*	,coalesce(H2Cancelled,0) as H2C*/
+from SalesLoadSummary s
+order by PartnerGroup, ProdCat, PartnerName, PartnerId
+;
+
+* Add those in Control sheet but not loaded yet;
+insert into comparison
+select PartnerGroup, InvoicingBrand, ProdId, ProdCat,  
+	0, net,-1*net
+/*from scratch.InvoicedSalesDetail c*/
+from krustControlSheet c
+where year=&year. and month=&Month. and net ne 0
+	and (select sum(netsales) from SalesLoadSummary s where c.Prodid=s.PartnerID) = .
+;
+
+* Matching by Partner;
+create table Matches as 
+select 
+	PartnerGroup, ProdCat, 
+	sum(s.Sales + s.Cancellation + s.HCancelled) as Matched,
+	sum(s.xSales + s.xCancellation) as UnMatched
+	
+from SalesLoadSummary s
+group by PartnerGroup, ProdCat
+order by PartnerGroup, ProdCat
+;
+quit;
+
+/*******************************************************************/
+/* Month on Month Volumes */
+proc sql;
+* Volume by ProdCat Reporting;
+create table VolumeVrsLastMonth as 
+select
+	ProdCat, Prodid, InvoicingBrand, 
+	sum(net) as Net,
+	(select sum(net) from KrustControlSheet B where a.Prodid=b.Prodid 
+	and b.year=&LastMonthYear. and b.Month=&LastMonth.) 
+		as LastNet
+from KrustControlSheet A
+where a.Year=&year. and a.Month=&Month. and a.Gross <> 0
+group by ProdCat, Prodid, InvoicingBrand
+order by ProdCat, Prodid, InvoicingBrand
+;
+
+create table ProgressVolume as
+select 
+	ProdCat, 
+	sum(Net) as Net,
+	sum(LastNet) as PriorNet,
+	(sum(Net) / sum(LastNet) -1) format=percent8.2 as Forcast
+from VolumeVrsLastMonth 
+group by ProdCat
+;
+quit;
+/*******************************************************************/
+*Ebenchmarkers;
+proc sql;
+create table EbenchMarkersVolume as 
+select ProdCat, year, month, 
+		year*100 + month as yearmonth,
+		sum(net) as Net,
+		sum(net*Ebenchmarkers) as Overlap
+from KrustControlSheet
+where Year=&year. and Month=&Month. or Year=&LastMonthYear. and Month=&LastMonth.
+group by prodcat, year, month
+order by yearmonth
+;
+quit;
+
+proc transpose data=EbenchMarkersVolume out=EbenchMarkersT;
+by yearmonth;
+id Prodcat;
+var net overlap;
+run;
+
+data EbenchMarkers;
+format YearMonth 8. Car CarOverLap Home HomeOverLap comma8.;
+merge EbenchMarkersT (in=a where=(_NAME_='Net')) EbenchMarkersT (in=b where=(_NAME_='Overlap') rename=( Home=HomeOverlap Car=CarOverlap));
+by yearmonth;
+run;
+
+proc sql;
+*Total;
+create table Volume as 
+select
+	ProdCat,
+	sum(net) as Net, sum(net*EbenchMarkers) as EBunk ,
+	(select sum(net) from KrustControlSheet B where a.ProdCat=b.ProdCat and b.year=&LastMonthYear. and b.Month=&LastMonth.) 
+		as LastNet
+from KrustControlSheet A
+where a.Year=&year. and a.Month=&Month.
+group by ProdCat
+order by ProdCat
+;
+quit;
+
+proc sort data=comparison;
+by PartnerGroup ProdCat PartnerName PartnerId;
+run;
+
+
+/*******************************************************************/
+%macro ReportSalesFiles;
+/*******************************************************************/
+
+Title "Sales Load Progress on &today.";
+* Build Control Sheet Progress Summary;
+proc sql;
+	select 
+		v.ProdCat label='Product Type',
+		v.Net label='Net Sales Loaded' format=comma11.,
+		p.Forcast label='Approx Sales Forcast',
+/*		(select count(distinct PartnerGroup) from Scratch.InvoicedSalesDetail where Year=&year. and Month=&Month. and Gross>0)/*/
+/*		(select count(distinct PartnerGroup) from Scratch.InvoicedSalesDetail where Year=&year. and Month=&Month.)*/
+/*		as CsProgress format=percent8.2 label="Control Sheet Progress",*/
+		(select count(distinct PartnerGroup) from SalesLoadSummary )/
+		(select count(distinct PartnerGroup) from KrustControlSheet where Year=&year. and Month=&Month. and (gross>0 or MIdatareceived=.))
+		as LProgress format=percent8.2 label='Sales Load Progress'
+	from Volume V
+	join ProgressVolume P on v.ProdCat=p.ProdCat
+;
+quit;
+
+Title "Disclaimers";
+data _null_;
+file print;
+	put "Sales volumes as entered within the Control sheet.";
+	put '&nbsp;';
+	put "Approximation of Sales forcast is determined by comparing the sum of the sales for the Partners already loaded";
+	put "against their Sales last month.";
+run;
+
+* Net Sales By Partner ;
+proc sql;
+Title "Net Sales By Partner.";
+select * from comparison c order by PartnerGroup, ProdCat, PartnerName, PartnerId;
+;
+quit;
+
+Title "Disclaimers";
+data _null_;
+file print;
+	put "Control Sheet Product codes do not always match the Product Code the sale is allocated to.";
+	put "This can be cross partner matching or old Product codes being matched to a sale.";
+	put "This will also cause differences between loaded sales and the control sheet";
+	put '&nbsp;';
+	put "H2C sales are sales defined as Historical by the Partner which has been matched to a quote";
+	put "that suggests it is a normal cancel.  This can cause differences within Net sales.";
+run;
+
+* Missing loads summarys;
+proc sql;
+Title "Control Sheet Sales to be loaded into the Sale Load file";
+select InvoicingBrand, ProdId format=best32., ProdCat, Net 
+from krustControlsheet I
+where year=&year. and month=&Month. and gross>0 and MIdatareceived <> . and
+	(select sum(netsales) from SalesLoadSummary S where s.PartnerId=i.Prodid) is null
+;
+quit;
+data _null_; file print;title; 
+put "The sales values have been entered into the control sheet but there are not yet any sales loaded into the system.";
+put "This is likely to mean that we have a summary but not yet recieved or loaded the data.";
+run;
+
+
+Title "Partners to be Loaded or Not recieved";
+proc sql;
+select PartnerGroup, InvoicingBrand, ProdId format=best32., ProdCat, Net 
+from KrustControlSheet I
+where 	year=&year. and month=&Month. 
+		and MIdatareceived = . 
+		and	(select sum(netsales) from SalesLoadSummary S where s.PartnerId=i.ProdId) is null
+order by PartnerGroup, InvoicingBrand
+;
+quit;
+
+* Matching ;
+proc sql;
+Title "Matching Summary";
+select 
+	sum(matched) as Matched, 
+	sum(unmatched) as UnMatched, 
+	(calculated matched)/((calculated matched)+(calculated unmatched)) as Matched_Per format=percent8.2
+from matches 
+;
+
+Title "Matching Summary by Partner Group";
+select 
+	*,
+	matched/(matched+unmatched) as Matched_Per format=percent8.2	
+from Matches 
+;
+quit;
+
+* Ebenchmarkers ;
+Title "EbenchMarkers Figures Due on 14th";
+proc sql;
+select 
+	YearMonth as Period,
+	Car label='Car Total',
+	CarOverLap label='Over Lap',
+	Home label='Home Total',
+	HomeOverLap label='Over Lap'
+from EbenchMarkers;
+quit;
+
+Title "Partner Volumes Compared to last month";
+proc sql;
+select ProdCat, ProdId, InvoicingBrand, Net label='Net this Month', LastNet label='Net Last Month'
+from volumevrslastmonth
+order by net desc
+;
+quit;
+%mend;
+ 
+%ReportSalesFiles;
+
+</body>
+</html>
