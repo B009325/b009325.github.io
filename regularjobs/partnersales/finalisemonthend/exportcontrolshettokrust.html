@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/* Export Control Sheet to Krust */ 
+
+
+
+%ImportControlSheet;
+
+data krust.ControlSheet;
+set KrustControlSheet;
+run;
+
+/*if not (year=2013 and month=3);*/
+
+title "Sales Volumes in Control Sheet ";
+proc sql;
+select prodcat, year, month, sum(net) as Sales
+from krust.ControlSheet
+group by prodcat, year , month 
+order by prodcat, year desc, month desc
+;
+quit;
+
+</body>
+</html>
