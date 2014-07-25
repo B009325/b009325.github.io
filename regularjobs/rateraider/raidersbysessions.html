@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+
+
+%include "E:\DI_Scratch\WPS Code\Live\Include\include.sas";
+
+%Register(Raiders, RaidersBySession);
+%LogWaitComplete(Speedtrap);
+
+
+/*1. Build Usersources known to be automatic process into ITCH.Usersources*/
+/*2. Build list of Potential Rate Raiders into ITCH.RR_RateRaiders */
+/*3. Use the ITCH.RateRaiders to capture the Custid and update ITCH.RR_Customers*/
+/*4. Add All NEW Rate raider customers to ITCH.unsubscribes*/
+
+
+/****************************************************************/
+/* Initialise Date Periods and Constants */
+/****************************************************************/
+
+
+data _null_;
+	Startdate=today()-60;
+	SDate=dhms(startdate,0,0,0);
+
+	call symput('SDate',SDate);
+	call symput('Potential_Rate_Raider',25);
+run;
+
+/****************************************************************/
+/* Extract Session Fact Tables for Period */
+/****************************************************************/
+
+/****************************************************************/
+/* 1. Build Usersources known to be automatic process           */
+/****************************************************************/;
+
+/* Ignore certain USDs */
+proc sql;
+select sas_usersource_dimension into: IgnoreUSD separated by ',' 
+from cea_dim.sas_usersource_dimension where index(usersource2,'Tesco') or sas_usersource_dimension in (1,2);
+quit;
+
+proc sql;
+create table ISP as
+select sas_isp_dimension
+from CEA_DIM.SAS_ISP_DIMENSION
+where left(isp) like '79.141.40.%'
+OR left(isp) like '255.255.255.%'
+OR left(isp) like '217.156.138.%'
+OR left(isp) like '80.231.69.%'
+OR left(isp) like '77.67.57.%'
+OR left(isp) like '80.64.57.%'
+OR left(isp) like '85.133.71.%'
+OR left(isp) like '77.68.69.%'
+OR left(isp) like '217.33.241.%'/*London - British Telecom*/
+OR left(isp) like '213.216.145.%'/*London - Cable & Wireless*/
+OR left(isp) like '217.156.150.%'/*London - Global Crossing / Level3*/
+OR left(isp) like '146.101.166.%'/*London - Telstra*/
+OR left(isp) like '193.129.103.%'/*London - Verizon*/
+OR left(isp) like '194.129.73.%'/*London - Verizon*/
+OR left(isp) like '195.11.160.%'
+OR left(isp) like '195.50.65.%'
+OR left(isp) like '195.11.162.%'
+OR left(isp) like '109.232.59.%'
+OR left(isp) like '195.95.131.%'
+OR left(isp) like '79.141.40.%'
+OR left(isp) like '64.39.102.%'
+OR left(isp) like '206.31.247.%'
+OR left(isp) like '220.181.108.%' /* MineField Beijing Banquet */
+OR left(isp) like '199.30.24.%' /* Mozilla California Micom Comms*/
+OR left(isp) like '199.30.25.%' /* Mozilla California Micom Comms*/
+;
+quit;
+
+/* get all sessions for recognised ISPs */
+proc sql;
+create table ISPsess as
+select * 
+from isp a,
+cea_fact.Session_Fact b
+where a.sas_isp_dimension = b.sas_isp_dimension
+and b.sas_usersource_dimension not in (&IgnoreUSD.);
+quit;
+
+/* summarise sessions to usersource level */
+
+
+proc summary data=ISPsess nway;
+class sas_usersource_dimension;
+output out=ISP_UserSources(drop=_type_);
+run;
+
+
+/* get unique usersources for known ISPs */
+proc sql;
+create table ISP_UserSources as
+select distinct sas_usersource_dimension
+from ISPsess;
+quit;
+
+
+/*********************************************************************************/
+/**** known USDs ********************************************************/
+/*********************************************************************************/
+
+/* get unique usersources for known usersource5 strings */
+proc sql;
+create table known_usersources as
+select distinct sas_usersource_dimension
+from CEA_DIM.SAS_USERSOURCE_DIMENSION
+where index(compress(lowcase(usersource5)),'siteconfidence')>0
+or sas_usersource_dimension in (35,1514,23546,606)  /*606 is an overnight google robot*/
+or index(compress(lowcase(usersource5)),'gomez advisors')>0
+or index(compress(lowcase(usersource2)),'china')>0
+or index(compress(lowcase(usersource2)),'staminus')>0
+or sas_usersource_dimension in (28375)
+;
+quit;
+
+
+/*********************************************************************************/
+/**** All Usersources where number of sessions in week is >70 ***********/
+/*********************************************************************************/
+
+
+/* get all sessions where user started but not completed quote */
+proc sql;
+create table sessions as
+select datetime, sas_usersource_dimension, (1) as count
+from cea_fact.Session_Fact
+where ((index(lowcase(goals),'start car quote') > 0 and index(lowcase(goals),'complete car quote') = 0)
+or (index(lowcase(goals),'start home quote') > 0 and index(lowcase(goals),'complete home quote') = 0))
+and sas_usersource_dimension not in (&IgnoreUSD.);
+quit;
+
+/* add dates etc */
+data sessions2;
+set sessions;
+sasdate = datepart(datetime);
+wkday = weekday(sasdate)-1+(weekday(sasdate)=1)*7;
+wc = sasdate-(wkday-1);
+format sasdate wc date9.;
+run;
+
+/* group by usersource and only keep where there is 70 or more in any week */
+proc sql;
+create table sessions3 as
+select wc, sas_usersource_dimension, sum(count) as count
+from sessions2
+group by wc, sas_usersource_dimension
+having calculated count >=70
+order by wc, count descending;
+quit;
+
+/* get unique usersources */
+proc sql;
+create table unique_USD as 
+select distinct sas_usersource_dimension
+from sessions3;
+quit;
+
+
+/*********************************************************************************/
+/**** merge all usersources, create macro variable & filter input table */
+/**** Flag the type of USD identified									 */
+/*********************************************************************************/
+
+data usersources;
+retain sas_usersource_dimension Type;
+length Type $15.;
+
+set known_usersources(in=KnownUser)
+	ISP_UserSources (in=KnownISP)
+    unique_USD(in=Limit);
+
+if KnownUser then Type='1-KnownUSD';
+	else if KnownISP then Type='2-KnownISP';
+	else Type='3-70Limit';
+run;
+
+proc sort ;
+by sas_usersource_dimension Type;
+run;
+
+
+proc sort nodupkey;
+by sas_usersource_dimension;
+run;
+
+%copytoitch(Usersources);
+
+
+
+/****************************************************************/
+/* Build list of Potential Rate Raiders into ITCH.RR_RateRaiders  */
+/****************************************************************/
+
+
+
+data Session_Extract;
+set cea_fact.Session_Fact;
+
+where 	Login ne '[None]'
+		and index(upcase(goals),'COMPLETE')>0
+/*		and datetime>=&SDate.*/
+		;
+
+Car=0; Home=0; ClickThrough=0; Search=0;
+
+if index(upcase(goals),'COMPLETE CAR')>0 then Car=1;
+if index(upcase(goals),'COMPLETE HOME')>0 then Home=1;
+if index(upcase(goals),'CLICKTHROUGH')>0 then Clickthrough=1;
+if index(upcase(goals),'SEARCH')>0 then Search=1;
+
+email=' ';
+Custid=0;
+
+if index(login,'@')>0 then email=login; 
+else 
+if Login ne '[None]' then Custid=1*login; 
+
+
+run;
+
+
+/****************************************************************/
+/* Simple Frequency Reports over Extract */
+/****************************************************************/
+
+/* Sessions Per Platform regardless of state */
+proc sql;
+create table Platform_Session_Counts as 
+select
+	sas_isp_dimension, sas_browser_dimension, sas_usersource_dimension,
+	count(*) as Platform_Session_Count
+from Session_Extract
+group by sas_isp_dimension, sas_browser_dimension, sas_usersource_dimension
+;
+quit;
+
+/* Completed Stats Per ISP */
+proc sql;
+create table Stats_Isp as 
+select 
+	isp,
+	count(*) as ISP_Session_Count_Completed,
+	count(distinct custid) as Customers,
+	sum(Home) as Home,
+	sum(Car) as Car,
+	sum(visits) as visits,
+	sum(Search) as Search,
+	sum(Clickthrough) as Clickthrough,
+	count(distinct sas_referrer_dimension) as Referers,
+	S.sas_isp_dimension
+
+from Session_Extract S
+left outer join CEA_DIM.sas_isp_dimension D on S.sas_isp_dimension=D.sas_isp_dimension
+group by isp, S.sas_isp_dimension
+order by Calculated ISP_Session_Count_Completed desc
+;
+
+quit;
+
+/* Platform and IP Stats */
+proc sql;
+create table temp as 
+select 
+	sas_isp_dimension, sas_browser_dimension, sas_usersource_dimension,
+	count(*) as Platform_Session_Count_Completed,
+	count(distinct custid) as Customers,
+	sum(Home) as Home,
+	sum(Car) as Car,
+	sum(visits) as visits,
+	sum(Search) as Search,
+	sum(Clickthrough) as Clickthrough,
+	count(distinct sas_referrer_dimension) as Referers
+
+from Session_Extract 
+group by sas_isp_dimension, sas_browser_dimension, sas_usersource_dimension
+order by Calculated Platform_Session_Count_Completed desc
+;
+quit;
+
+/* Add Descriptive values as they would not fit into grouping as they make the key too big */
+proc sql;
+create table Stats_ISP_Platform as 
+select
+	d.isp,
+	platform, browser_version,browser,
+	usersource, usersource2, usersource3, usersource4,
+	si.ISP_Session_Count_Completed,
+	Platform_Session_Count,
+	s.Platform_Session_Count_Completed,
+	Platform_Session_Count_Completed/Platform_Session_Count as CompletionRate format=percent8.2,
+	s.Customers,s.Home,s.Car,s.visits,s.Search,s.Clickthrough,s.Referers,
+	s.sas_isp_dimension, s.sas_browser_dimension, s.sas_usersource_dimension
+
+from temp S
+join CEA_DIM.sas_isp_dimension D on S.sas_isp_dimension=D.sas_isp_dimension
+join CEA_DIM.sas_browser_dimension B on b.sas_browser_dimension=S.sas_browser_dimension
+join CEA_DIM.sas_usersource_dimension U on U.sas_usersource_dimension=S.sas_usersource_dimension
+join Stats_ISP si on si.isp=d.isp
+join Platform_Session_Counts PCA on S.sas_isp_dimension=pca.sas_isp_dimension and
+			s.sas_browser_dimension=pca.sas_browser_dimension and s.sas_usersource_dimension=pca.sas_usersource_dimension
+order by Platform_Session_count desc
+;
+quit;
+
+/****************************************************************/
+/* Confidence check of above */
+/****************************************************************/
+proc sql;
+title 'Total ISP counts:';
+select sum(ISP_Session_Count_Completed) from Stats_Isp;
+
+title 'Total Platform counts:';
+select sum(platform_session_count) from Stats_Isp_Platform;
+quit;
+
+/****************************************************************/
+/* Identify Potential Raiders */
+/****************************************************************/
+/* Select the Dodgy ones */
+proc sql;
+create table RateRaiders as 
+select * from stats_isp_platform
+where 
+	Platform_Session_Count_Completed>&Potential_Rate_Raider. 
+	and clickthrough=0
+	and platform not in ('Android', 'Iphone','Macos X','Linux','Sony-Ericsson Phone','Ipad','Blackberry','Nokia Phone')
+	and browser not in ('Aol')
+	order by sas_isp_dimension, sas_browser_dimension, sas_usersource_dimension;
+;
+quit;
+
+
+/*Date_Added to RateRaiders */
+data RateRaiders;
+set RateRaiders;
+
+Date_Added=input(put(today(),yymmddn8.),8.);
+run;
+
+proc sort data=itch.RR_NonRaiders out=RR_NonRaiders;
+by sas_isp_dimension sas_browser_dimension sas_usersource_dimension;
+run;
+
+
+/* Remove Non Raiders */
+data RateRaiders;
+merge RateRaiders (in=a) RR_NonRaiders (in=b);
+by sas_isp_dimension sas_browser_dimension sas_usersource_dimension;
+if a and not b;
+usersource2=compress(usersource2);
+run;
+
+
+
+/****************************************************************/
+/* Sort and Extract New and Lost Rate Raiders */
+
+/* Only report those that are not being picked up already */
+/****************************************************************/
+
+data RR_RateRaiders ;
+set itch.RR_RateRaiders;
+usersource2=compress(usersource2);
+run;
+
+proc sort data=RR_RateRaiders;
+by sas_isp_dimension usersource2;
+run;
+
+proc sort data=RateRaiders;
+by sas_isp_dimension usersource2;
+run;
+
+
+
+data New_RateRaiders ;
+merge RateRaiders (in=a) RR_RateRaiders (in=B);
+by sas_isp_dimension usersource2;
+if a and not b then output New_RateRaiders;
+run;
+
+/***********************************************************************************/
+/* Update Itch.RateRaiders with the new Raiders */
+/***********************************************************************************/
+
+
+data RR_RateRaiders;
+set itch.RR_RateRaiders;
+run;
+
+proc sort data=RR_RateRaiders ;
+by sas_isp_dimension sas_browser_dimension sas_usersource_dimension;
+run;
+
+proc sort data=RateRaiders;
+by sas_isp_dimension sas_browser_dimension sas_usersource_dimension;
+run;
+
+data RateRaiders_New;
+merge RateRaiders (in=a) RR_RateRaiders  (in=b);
+by sas_isp_dimension sas_browser_dimension sas_usersource_dimension;
+if a and not b then output RateRaiders_New;
+run;
+
+proc sql;
+insert into RR_RateRaiders
+select * from RateRaiders_New;
+quit;
+
+proc sort data=RR_RateRaiders nodupkey;
+by sas_isp_dimension sas_browser_dimension sas_usersource_dimension;
+run;
+
+
+%copytoitch(RR_RateRaiders);
+
+
+/*----------------------Note how many we have for reporting ----------------------*/
+proc sql;
+	select count(*) into :new_raiders from New_RateRaiders;
+	select count(*) into :rate_raiders from itch.RR_RateRaiders;
+	select count(*) into :new_raiders_platforms from RateRaiders_New;
+quit;
+/*----------------------------------------------------------------------------*/
+
+
+* build Mailconfidence list as we do not want them as rate raiders either;
+title "SiteConfidence Customer Id's";
+proc sql;
+create table RR_SiteConfidence as
+select custid from dw_dim.cust 
+	where index(emailaddr,'mailconfidence')>0 or index(emailaddr,'nullmail')>0
+order by custid
+;
+
+select s.custid, emailaddr from rr_siteconfidence  s
+left outer join dw_dim.cust c on c.custid=s.custid
+;
+quit;
+
+%copytoitch(RR_SiteConfidence);
+
+
+/**********************************************************************/
+/* Build up list of customers created by Rate Raiders over the period */
+/* The output here is used for some of the reports and summaries */
+/**/
+/************************************************************************/
+
+/*-------------------------------------------------------------*/
+/* Remove Non Rate Raiders - using isp and UserSource2 */
+/*-------------------------------------------------------------*/
+
+/* List pairings to be removed */
+proc sql;
+create table RateRaiders_IP_UserSource2 as 
+select distinct 
+	sas_isp_dimension, UserSource2 
+from itch.RR_RateRaiders
+order by sas_isp_dimension, UserSource2 ;
+quit;
+
+/* Add UserSource details to Extract */
+
+proc sql;
+create table Session_Extract as 
+select a.custid, a.sas_isp_dimension, b.UserSource2 
+from Session_Extract as a
+left join CEA_DIM.sas_usersource_dimension as b
+on a.sas_usersource_dimension=b.sas_usersource_dimension
+order by a.sas_isp_dimension, b.UserSource2;
+quit;
+
+
+/* Extract those that match - Customers created by Raiders*/
+
+
+proc sql;
+create table Sessions as 
+select * from Session_Extract as a
+inner join RateRaiders_IP_UserSource2 as b
+on a.sas_isp_dimension=b.sas_isp_dimension and compress(a.UserSource2)=compress(b.UserSource2);
+quit;
+
+
+data RR_Customers;
+set itch.RR_Customers;
+run;
+
+/*************************************************************************************************/
+/* Extract Customers For Raiders into Scratch */
+/*************************************************************************************************/
+proc sql;
+/*create table scratch.RR_Customers as*/
+insert into RR_Customers 
+select distinct custid from Sessions;
+
+* Insert static Custids identified by other means (non programmatic);
+insert into RR_Customers
+select * from itch.RR_Customers_Other;
+
+insert into RR_Customers
+select custid from dw_dim.cust where index(emailaddr,'mailconfidence')>0 or index(emailaddr,'nullmail.nccgroup.com') 
+or index(emailaddr,'consumerintelligence.com')
+;
+quit;
+
+proc sort data=RR_Customers nodupkey;
+by custid;
+run;
+
+/*******************************************************************/
+/* Remove those who have clicked or had a sale */
+proc sql;
+create table RaiderExclusions as 
+select distinct custid from dw_fact.carclick a
+join dw_dim.carqutnrqst b on a.cqrqstkey=b.cqrqstkey;
+
+insert into RaiderExclusions select distinct custid from dw_fact.homeclick a
+join dw_dim.homequtnrqst b on a.hqrqstkey=b.hqrqstkey;
+
+insert into RaiderExclusions select distinct custid from dw_bau.bau_sales_t;
+
+quit;
+
+proc sort data=RaiderExclusions nodupkey;
+by CustId;
+run;
+
+data RR_Customers;
+merge RR_Customers (in=a) RaiderExclusions (in=b);
+by Custid;
+
+if a and not b;
+run;
+
+
+%copytoitch(RR_Customers);
+
+
+/*----------------------Note how many we have for reporting ----------------------*/
+proc sql;
+	select count(*) into :raider_custs from RR_Customers;
+quit;
+/*----------------------------------------------------------------------------*/
+
+/*
+	4. Add All NEW Rate raider customers to ITCH.unsubscribes
+
+	If they already exist do not add them
+*/
+
+
+/* build List of Raiders */
+proc sql;
+create table RaiderEmails as
+select 
+	r.custid, 
+	lowcase(emailaddr) as email, 
+	%sas2dtkey(today()) as UnsubscribedDate,
+	83 as Reason
+
+from itch.rr_customers r
+join dw_dim.cust c on c.custid=r.custid and scdcurrrowind=1
+order by custid
+;
+quit;
+
+/* Extract Itch Unsubscribes */
+proc sql;
+create table Unsubscribes as 
+select distinct custid from Itch.Unsubscribes;
+
+insert into Unsubscribes
+select distinct custid from dw_bau.Unsubscribes_t
+;
+quit;
+
+proc sort data=Unsubscribes;
+by CustId;
+run;
+
+/* Extract New Raiders only*/
+data Temp;
+merge RaiderEmails (in=a) Unsubscribes (in=b keep=custid) ;
+by Custid;
+
+if a and not b;
+run;
+
+* Merge Update Itch;
+data UnsubscribesNew;
+set itch.Unsubscribes temp;
+/*set temp;*/
+run;
+
+proc sort data=UnsubscribesNew;
+by Email UnsubscribedDate;
+run;
+
+data Unsubscribes;
+set UnsubscribesNew;
+by email;
+if first.email;
+run;
+
+%copytoitch(Unsubscribes);
+
+/********************************************************************************************/
+/* Email out the results */
+/********************************************************************************************/
+
+data _null;
+	call symput('today',put(intnx('days',today(),-1,'S'),yymmddd10.));
+run;
+%macro emailit();
+
+/* Global email options */
+FILENAME output EMAIL
+SUBJECT="WPS Rate Raider Report &today."
+TO= (  "05_TB_tescocompareMIteam@uk.tesco.com")
+/*TO= (  "Ross.Thomson@i.tescobank.com" )*/
+
+content_type="text/html"		
+;
+/* Sending email */;
+
+ODS HTML BODY=output;
+
+data _null_;
+file print;
+title;
+    put "Hello,"; 
+	put "Please see below for results of the Rate Raider search.";
+	put "&nbsp";
+    put "Kind regards,"; 
+    put "The Data And Insight Team"; 
+run;
+
+
+data _null_;
+file print;
+title;
+	put "Current total number of Rate Raider Platforms : &rate_raiders.";
+	put "Current total number of Rate Raiders Customers: &raider_custs.";
+	%if &new_raiders_platforms %then %do;
+	put "&nbsp";
+	put "&new_raiders_platforms. new Rate Raider platforms added.";
+	%end;
+run;
+
+/* New Rate Raiders */
+%if &New_Raiders %then %do;
+
+proc print data=New_RateRaiders ;
+	title 'Newly Identified Rate Raider Sources.';
+run;
+
+%end; %else %do;
+data _null_;
+file print;
+	title;
+	put 'No new Rate Raider Sources detected.';
+run;
+%end;
+
+
+ods _all_ close;
+ods listing;
+
+%mend;
+%emailit();
+
+%registercomplete;
+
+
+
+
+
+</body>
+</html>
