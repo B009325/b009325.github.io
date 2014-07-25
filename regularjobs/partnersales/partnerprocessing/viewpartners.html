@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%include "E:\DI_Scratch\include\include.sas";
+
+%let name=Axa;
+
+title "&Name. Partners";
+
+proc sql;
+select * from Krust.Partners 
+where index(upcase(PartnerGroup),upcase("&name."))>0 or
+	index(upcase(InvoicingBrand),upcase("&name."))>0 or
+	index(upcase(ProdName),upcase("&name."))>0
+order by PartnerGroup, ProdCat, InvoicingBrand, ProdName
+;
+quit;
+
+%let Prod=100000210;
+title "DW_Dim Partners with Prodid=&Prod.";
+proc sql;
+select * from dw_dim.prod
+where prodid=&Prod.;
+quit;
+
+title "Last five New Partners";
+proc sql;create table temp as select * from krust.partners order by ProdIdStart desc;quit;
+options obs=5;
+proc sql;select * from temp;quit;
+options obs=max;
+proc datasets lib=work nolist nodetails;
+	delete temp;
+run;
+
+title "Invoicing Partners By Group";
+proc sql;
+select PartnerGroup, ProdCat, Prodid, InvoicingBrand
+from Krust.Partners 
+where PartnerGroup ne ''
+order by PartnerGroup, ProdCat, InvoicingBrand
+
+;
+quit;
+
+
+title "All Partners by ProdId";
+proc sql;
+select  *
+from Krust.Partners 
+order by Prodid
+;
+quit;
+
+
+
+
+
+
+
+
+</body>
+</html>
