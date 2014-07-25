@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/****************************************************************/
+/* Produce table of Partner Range values */
+
+proc sort data=partner_full_data;
+by prodid prodname ProdCat;
+run;
+
+proc univariate data=partner_full_data noprint;
+where QuoteDate <= &Sample_EndDate.;
+by prodid prodname ProdCat;
+var Quotes_Filtered Quotes_Returned TopThree Bnp;
+output out=Partner_univar_output 
+	QRANGE=QRANGE_Filtered QRANGE_returned QRANGE_TopThree QRANGE_Bnp 
+	q1=min_Quotes_Filtered min_Quotes_Returned min_TopThree min_Bnp 
+	q3=max_Quotes_Filtered max_Quotes_Returned max_TopThree max_Bnp 
+;
+run;
+
+proc sql;
+create table Partner_Ranges as
+	select 
+		UV.prodid, UV.prodname, UV.ProdCat,
+		max_quotes_filtered + &max_std. * QRANGE_Filtered as max_Quotes_Filtered format=percent8.2,
+		min_Quotes_Filtered - &min_std. * QRANGE_Filtered as min_Quotes_Filtered format=percent8.2,
+
+		max_Quotes_Returned + &max_std_Returned. * QRANGE_Returned as max_Quotes_Returned format=percent8.2,
+		min_Quotes_Returned - &min_std_Returned. * QRANGE_Returned as min_Quotes_Returned format=percent8.2,
+
+		max_TopThree + &max_std. * QRANGE_TopThree as max_TopThree format=percent8.2,
+		min_TopThree - &min_std. * QRANGE_TopThree as min_TopThree format=percent8.2,
+
+		max_bnp + &max_std. * QRANGE_bnp as max_bnp format=percent8.2,
+		min_bnp - &min_std. * QRANGE_bnp as min_bnp format=percent8.2
+
+	from Partner_univar_output UV
+	/* force validation of only our top partners */
+/*	join scratch.validation_partners VP on UV.prodid=VP.prodid and UV.ProdCat=VP.ProdCat*/
+;
+quit;
+/****************************************************************/
+/* Partner Range Adjustments / Tolerances */
+/****************************************************************/
+
+data Partner_Ranges;
+set Partner_Ranges;
+
+	max_Quotes_Filtered = max_Quotes_Filtered * (1 + &max_tolerance.);
+	min_Quotes_Filtered = min_Quotes_Filtered * (1 - &max_tolerance.);
+
+/*	max_Quotes_Returned = max_Quotes_Returned * (1 + &max_tolerance.);*/
+/*	min_Quotes_Returned = min_Quotes_Returned * (1 - &max_tolerance.);*/
+
+	max_TopThree = max_TopThree * (1 + &max_tolerance.);
+	min_TopThree = min_TopThree * (1 - &max_tolerance.);
+
+	max_Bnp = max_Bnp * (1 + &max_tolerance.);
+	min_Bnp = min_Bnp * (1 - &max_tolerance.);
+
+
+	/* Stop low frequency Partners raising Errors when something actually happens for a change */
+	if max_bnp < 0.015 then max_bnp = 0.015; /* min Max_bnp of 1% avoids smaller partners inflating warnings*/
+	if max_TopThree < 0.015 then max_TopThree = 0.015;
+
+	/*Max Boundary for all stats of 99%*/
+	if max_Quotes_Filtered > 0.99 then max_Quotes_Filtered=0.99;
+	if max_Quotes_Returned > 0.99 then max_Quotes_Returned=0.99;
+	if max_TopThree > 0.99 then max_TopThree=0.99;
+	if max_Bnp > 0.99 then max_Bnp=0.99;
+
+	/* Minimum Boundary of zero % */
+	if min_Quotes_Filtered < 0 then min_Quotes_Filtered=0;
+	if min_Quotes_Returned < 0  then min_Quotes_Returned=0;
+	if min_TopThree < 0  then min_TopThree=0;
+	if min_Bnp < 0  then min_Bnp=0;
+
+run;
+
+/****************************************************************/
+/* Produce table of Error Values SHOULD ONLY BE RUN ONCE */
+/****************************************************************/
+
+/*proc sql;*/
+/*	create table itch.Partner_Errors (*/
+/*		Prodid NUM FORMAT=11.0*/
+/*		,Prodkey NUM FORMAT=11.0*/
+/*		,ProdName char(30)*/
+/*		,QuoteDate NUM FORMAT=8.0*/
+/*		,ProdCat char(4)*/
+/*		,ErrorValue NUM FORMAT=11.2*/
+/*		,ErrorBoundary NUM FORMAT=11.2*/
+/*		,ErrorField char(10)*/
+/*		,ErrorMessage char(80)*/
+/*		);*/
+/*quit;*/
+
+/*******************************************************************/
+/* Delete values for this run in case it is run more than once/day */
+/*******************************************************************/
+data Partner_Errors;
+set Moe.Partner_Errors;
+stop;
+run;
+
+/*proc sql;*/
+/*	delete from Partner_Errors where dtkey >= &ErrChk_StartDate. and dtkey <= &ErrChk_EndDate.;*/
+/*run;*/
+
+/*************************************************************************************************/
+/* Report Errors */
+/*************************************************************************************************/
+
+
+/****************************************************************/
+/* Find any missing Partners */ 
+/****************************************************************/
+/* Build list of Dates/Partners/ProdCats */
+proc sql;
+create table Partner_Range_Dates as
+select * 
+from dw_dim.date D, Partner_Ranges PR 
+where D.dtkey  >= &ErrChk_StartDate. and D.dtkey <= &ErrChk_EndDate.
+;
+quit;
+
+/* Output Errors from any missing Partners */
+proc sql;
+insert into Partner_Errors
+select 
+	RD.prodid, 0, RD.prodname, RD.dtkey, RD.ProdCat,0,0,
+	'Partner',
+	'Not Found'
+from Partner_Range_Dates RD
+left outer join Partner_Full_Data FD on RD.dtkey = FD.QuoteDate and RD.prodid = FD.Prodid and RD.ProdCat=FD.ProdCat
+where FD.Prodid is null /*Not found*/ 
+;
+quit;
+
+
+/****************************************************************/
+/* Report any individual errors */
+/****************************************************************/
+
+%macro errorchk(value, check, checkvalue,checkProdCats, field, message);
+
+proc sql;
+insert into Partner_Errors select
+	PD.prodid, PD.prodkey, PD.prodname, PD.QuoteDate, PD.ProdCat,
+	&value.*100, 
+	&checkvalue.*100,
+	&field.,
+	&message.
+
+from partner_full_data PD
+join Partner_Ranges PR on PR.prodid = PD.Prodid and PR.ProdCat=PD.ProdCat
+where &value.&check.&checkvalue.
+	and PD.ProdCat in &checkProdCats.
+
+	and PD.QuoteDate  >= &ErrChk_StartDate. and PD.QuoteDate  <= &ErrChk_EndDate.
+;
+quit;
+
+%mend;
+
+
+/*****************************************************************************/
+/* Zero value validations */
+/*****************************************************************************/
+
+/* BuyNow Clicks are Zero */
+/*%errorchk ( */
+/*	(Clicks_Count),*/
+/*	=,*/
+/*	0,*/
+/*	'Clicks',*/
+/*	'Zero value'	*/
+/*);*/
+/* Filtered are Zero */
+%errorchk ( 
+	(FILTERED),
+	=,
+	0,
+	('Car','Home'),
+	'Filtered',
+	'Zero Value'	
+);
+/* Requests are Zero */
+%errorchk ( 
+	(Quotes),
+	=,
+	0,
+	('Car','Home'),
+	'Requests',
+	'Zero Value'	
+);
+/* Responses are Zero */
+%errorchk ( 
+	(Responses),
+	=,
+	0,
+	('Car','Home'),
+	'Responses',
+	'Zero Value'	
+);
+/*****************************************************************************/
+/* Filtered Request validations */
+/*****************************************************************************/
+/* Filtered Quotes too Small */
+%errorchk ( 
+	(FILTERED/Quotes),
+	<,
+	min_Quotes_Filtered,
+	('Car','Home'),
+	'Filtered',
+	'Lower Than Expected'	
+);
+/*Filtered Quotes too Large */
+%errorchk ( 
+	(FILTERED/Quotes),
+	>,
+	max_Quotes_Filtered,
+	('Car','Home'),
+	'Filtered',
+	'Higher Than Expected'	
+);
+/* Filtered are Higher Than Expected */
+%errorchk ( 
+	(FILTERED/Quotes),
+	>,
+	0.99,
+	('Car','Home'),
+	'Filtered',
+	'Higher Than Expected'
+);
+/* Filtered are Unusually Small */
+/*%errorchk ( */
+/*	(FILTERED/Quotes),*/
+/*	<,*/
+/*	0.0025,*/
+/*	('Car','Home'),*/
+/*	'Filtered',*/
+/*	'Unusually Small'	*/
+/*);*/
+/*****************************************************************************/
+/* Quotes Returned (Responses) validations */
+/*****************************************************************************/
+
+/*Returned Quotes too Large */
+%errorchk ( 
+	(Responses/(Quotes-filtered)),
+	>,
+	max_Quotes_Returned,
+	('Car','Home'),
+	'Returned',
+	'Higher Than Expected'	
+);
+/*Returned Quotes too Small */
+%errorchk ( 
+	(Responses/(Quotes-filtered)),
+	<,
+	min_Quotes_Returned,
+	('Car','Home'),
+	'Returned',
+	'Lower Than Expected'	
+);
+/*Returned Quotes are Higher Than Expected */
+%errorchk ( 
+	(Responses/(Quotes-filtered)),
+	>,
+	.99,
+	('Car','Home'),
+	'Returned',
+	'Higher Than Expected'	
+);
+/*Returned Quotes are Unusually Small */
+/*%errorchk ( */
+/*	(Responses/(Quotes-filtered)),*/
+/*	<,*/
+/*	.10,*/
+/*	('Car','Home'),*/
+/*	'Returned',*/
+/*	'Unusually Small'	*/
+/*);*/
+
+/*****************************************************************************/
+/* Top Three validations */
+/*****************************************************************************/
+/*Top Three too Small */
+%errorchk ( 
+	((TopThree_Count)/Responses),
+	<,
+	min_TopThree,
+	('Car','Home'),
+	'TopThree',
+	'Lower Than Expected'	
+);
+/*Top Three too Large */
+%errorchk ( 
+	((TopThree_Count)/Responses),
+	>,
+	max_TopThree,
+	('Car','Home'),
+	'TopThree',
+	'Higher Than Expected'	
+);
+/*Top Three are Unusually Small */
+/*%errorchk ( */
+/*	((Position_One+Position_two+Position_three)/Responses),*/
+/*	<,*/
+/*	.001,*/
+/*	('Car','Home'),*/
+/*	'TopThree',*/
+/*	'Unusually Small'	*/
+/*);*/
+/*Top Three are Higher Than Expected */
+%errorchk ( 
+	((TopThree_Count)/Responses),
+	>,
+	.80,
+	('Car','Home'),
+	'TopThree',
+	'Higher Than Expected'	
+);
+/*****************************************************************************/
+/* BuyNow Percentage validations */
+/*****************************************************************************/
+/*Buy Nows percent too Large */
+%errorchk ( 
+	(Clicks_Count/Responses),
+	>,
+	max_bnp,
+	('Car','Home'),
+	'BuyNowPerc',
+	'Higher Than Expected'	
+);
+/*Buy Nows percent too Small */
+%errorchk ( 
+	(Clicks_Count/Responses),
+	<,
+	min_bnp,
+	('Car','Home'),
+	'BuyNowPerc',
+	'Lower Than Expected'	
+);
+/*BuyNowPercentage are Higher Than Expected  CAR */
+%errorchk ( 
+	(Clicks_Count/Responses),
+	>,
+	.05,
+	('Car'),
+	'BuyNowPerc',
+	'Higher Than Expected'	
+);
+/*BuyNowPercentage are Higher Than Expected HOME*/
+%errorchk ( 
+	(Clicks_Count/Responses),
+	>,
+	.10,
+	('Home'),
+	'BuyNowPerc',
+	'Higher Than Expected'	
+);
+/*BuyNowPercentage are Unusually Small */ /*too many zero clicks per month*/
+/*%errorchk ( */
+/*	(Clicks_Count/Responses),*/
+/*	<,*/
+/*	.0001,	*/
+/*	('Car','Home'),*/
+/*	'BuyNowPerc',*/
+/*	'Unusually Small'	*/
+/*);*/
+/*****************************************************************************/
+/* Simple Error Reporting */
+/*****************************************************************************/
+
+/*****************************************************************************/
+/* Adjust those that are way way out */
+/*****************************************************************************/
+
+proc sort data=Partner_Ranges;
+by Prodid;
+run;
+
+proc sort data=Partner_Errors;
+by Prodid;
+run;
+
+
+
+data Partner_Errors;
+merge Partner_Errors(in=a) Partner_Ranges(in=b);
+by Prodid;
+if a;
+
+	if index(ErrorMessage,'Expected')>0 and dtkey >= &ErrChk_StartDate. and dtkey  <= &ErrChk_EndDate. then do;
+		if 	ErrorField = 'Filtered' 
+				and ErrorValue/100<(min_Quotes_Filtered - (max_Quotes_Filtered - min_Quotes_Filtered))
+		or 	ErrorField = 'Returned'
+				and ErrorValue/100<(min_Quotes_Returned - (max_Quotes_Returned - min_Quotes_Returned))
+		or 	ErrorField = 'BuyNowPerc'
+				and ErrorValue/100<(min_bnp - (max_bnp -min_bnp))
+		or 	ErrorField = 'TopThree'
+				and ErrorValue/100<(min_TopThree - (max_TopThree - min_TopThree))
+		then ErrorMessage='Abnormally Small';
+	end;
+
+	if index(ErrorMessage,'Expected')>0 and dtkey >= &ErrChk_StartDate. and dtkey  <= &ErrChk_EndDate. then do;
+		if 	ErrorField = 'Filtered' 
+				and ErrorValue/100>(max_Quotes_Filtered + (max_Quotes_Filtered - min_Quotes_Filtered))
+		or 	ErrorField = 'Returned'
+				and ErrorValue/100>(max_Quotes_Returned + (max_Quotes_Returned - min_Quotes_Returned))
+		or 	ErrorField = 'BuyNowPerc'
+				and ErrorValue/100>(max_bnp + (max_bnp - min_bnp))
+		or 	ErrorField = 'TopThree'
+				and ErrorValue/100>(max_TopThree + (max_TopThree - min_TopThree))
+		then ErrorMessage='Abnormally Large';
+	end;
+	
+	drop max_Quotes_Filtered min_Quotes_Filtered max_Quotes_Returned min_Quotes_Returned max_TopThree min_TopThree max_bnp min_bnp prodcat;
+run;
+
+
+/*****************************************************************************/
+/* Remove duplicate messages for the same day */
+proc sort data=Partner_errors nodupkey;
+by prodid dtkey errorfield errormessage;
+run;
+
+/*****************************************************************************/
+
+/*
+%let sMark=>;
+%let eMark=<;
+%let Dash=-;
+%let Mark=0;
+%macro TextSliderString(PosVal, LowerVal, UpperVal,length);
+
+%let x=1;
+%let OutString=;
+%do %While(&x < &length);
+	%let Outstring=&Outstring.&Dash.;
+	%let x=%eval(&x+1);
+%end;
+
+%let OutString=&sMark.&Outstring.;
+%let z=min(max(int(min(&PosVal-&LowerVal., &Upperval-&LowerVal.)/((&UpperVal.-&LowerVal.)/&length.)),1),&length.);
+
+%let asdf=substr("&OutString",1,&z.)||"&Mark."||substr("&OutString",&z.+1,&length.-&z.+1)||"&eMark.";
+&asdf.
+%mend;
+*/
+
+
+
+
+
+</body>
+</html>
