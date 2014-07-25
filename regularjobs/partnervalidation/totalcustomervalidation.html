@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%global sMark eMark Dash Mark;
+/*****************************************************************************/	
+/*
+	Validate Number of Quotes in Day
+
+	Daily_Cust_Volumes created within Total Request Validation
+
+	Timings:
+*/
+
+
+/*%let ErrChk_StartDate=20120801;*/
+
+/*****************************************************************************/
+/* Create Stats by Weekday */
+/*****************************************************************************/
+/* Add Weekday */
+data Daily_Cust_Volumes;
+	set Daily_Cust_Volumes;
+	weekday=weekday(input(dtkey,anydtdte12.));
+run;
+
+proc sort data=Daily_Cust_Volumes;
+by prodcat weekday ;
+run;
+
+/* Calc stats */
+proc univariate data=Daily_Cust_Volumes noprint;
+where dtkey <= &volSample_EndDate.;
+by prodcat weekday;
+var Custs;
+output out=Daily_Cust_Volumes_univar_output 
+	QRANGE=QRANGE_Custs
+	q1=min_Custs
+	q3=max_Custs;
+run;
+
+/* Create min max ranges */
+proc sql;
+create table Daily_Cust_Volumes_Ranges as
+	select 
+		UV.prodcat, UV.weekday,
+		max_Custs + &volmax_std. * QRANGE_Custs as max_Custs format=num11.0,
+		min_Custs - &volmin_std. * QRANGE_Custs as min_Custs format=num11.0
+	from daily_Cust_volumes_univar_output UV 
+;
+quit;
+
+
+/*****************************************************************************/
+/* Update Moe.Partner Errors */
+
+data Partner_Errors;
+set Moe.Partner_Errors Partner_Errors;
+run;
+
+/* Remove duplicate messages for the same day */
+proc sort data=Partner_errors nodupkey;
+by prodid dtkey errorfield errormessage;
+run;
+
+
+%macro updateMoe;
+%if &Syserr=0 and &Syscc<5 %then %do;
+	proc datasets lib=Moe nolist nodetails;
+		delete Partner_Errors;
+	run;
+	
+	data Moe.Partner_Errors;
+	set Partner_Errors;
+	run;
+%end;
+%mend;
+%updateMoe;
+
+
+
+</body>
+</html>
