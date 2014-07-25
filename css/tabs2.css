@@ -165,6 +165,7 @@
     -o-transition: all ease-out 0.2s 0.1s;
     -ms-transition: all ease-out 0.2s 0.1s;
     transition: all ease-out 0.2s 0.1s;
+    display:inline;
 }
 
 .content div h2 {
