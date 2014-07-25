@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%macro Validations;
+/*%if &testing %then %do;*/
+
+proc sql;
+create table Validations
+(
+	Type char(30) format=$30. label='Type',
+	&Partner._&Type. num format=5.0 label='&Partner. &Type.',
+	KrustySales num format=5.0 label='All Sales',
+	Historic num format=5.0 label='Historic'
+)
+;
+insert into Validations set
+	Type= "All" ,
+	&Partner._&Type.=(select count(*) from &Partner._&Type.),
+	KrustySales = (select count(*) from KrustySales),
+	%if &HistoricalCount %then %do;
+		Historic=(select count(*) from &Partner._&Type.4HM)
+	%end; %else %do; Historic=0 %end;
+;
+insert into Validations set
+	Type= "Distinct" ,
+	&Partner._&Type.=(select count(distinct unkey) from &Partner._&Type.),
+	KrustySales=(select count(distinct unkey) from KrustySales),
+	%if &HistoricalCount %then %do;
+		Historic=(select count(distinct unkey) from &Partner._&Type.4HM)
+	%end; %else %do;Historic=0 %end;
+;
+title "Validation Record Counts";
+select * from Validations;
+quit;
+
+title "&Partner._&Type. duplicate records";
+proc sql;
+create table dups as select unkey, count(*) as rcds from &Partner._&Type. group by unkey;
+select * from &Partner._&Type. p
+join dups d on p.unkey=d.unkey where rcds>1;
+quit;
+
+%if &HistoricalCount %then %do;
+	title "Historical duplicate records";
+	proc sql;
+	create table Hdups as select unkey, count(*) as rcds from &Partner._&Type.4HM group by unkey;
+	select * from &Partner._&Type.4HM p
+	join Hdups d on p.unkey=d.unkey where rcds>1;
+	quit;
+%end;
+
+/*%end;*/
+%mend;
+
+/*%Validations;*/
+
+</body>
+</html>
