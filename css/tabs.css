@@ -141,6 +141,7 @@
 
 .content-2 a {
 	padding-left:15px;
+	disply:inline;
 }
 
 .tabs input.tab-selector-1:checked ~ .content .content-1,
