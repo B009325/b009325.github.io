@@ -144,7 +144,7 @@
 }
 
 .tabs input.tab-selector-1:checked ~ .content .content-1,
-.tabs input.tab-selector-2:checked ~ .content .content-2 .content-2a,
+.tabs input.tab-selector-2:checked ~ .content .content-2,
 .tabs input.tab-selector-3:checked ~ .content .content-3,
 .tabs input.tab-selector-4:checked ~ .content .content-4 {
     -webkit-transform: translateX(0px);
