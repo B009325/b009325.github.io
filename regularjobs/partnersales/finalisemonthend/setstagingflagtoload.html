@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/* Set Controls */
+proc sql;
+update itch.bau_load_Control_t set loadenabled=1 where loadtype='SALES';
+QUIT;
+/*--------------------------------------------------------------------------*/
+proc sql;
+title "Load Control";
+SELECT * from itch.bau_load_Control_t where loadtype='SALES';
+
+title "Stagin Records";
+SELECT count(*) from itch.bau_sales_stg;
+quit;
+
+%FileLoadSummary;
+
+proc sql outobs=5;
+title "Import Audit - Recent Records";
+SELECT 
+	BAU_Load_ID label="Load",
+	Load_Type label="Type",
+	Load_Comments label="Comment", 
+	Load_Stg_Row_Count label="Input Rows", 
+	Load_Live_Insert_Count label="Updated Rows", 
+	substr(put(Start_Time,datetime18.),1,7) label="Date",
+	substr(put(Start_Time,datetime18.),11,5) label="Time"
+
+from dw_bau.bau_imports_audit_t  order by BAU_Load_ID desc;
+QUIT;
+
+</body>
+</html>
