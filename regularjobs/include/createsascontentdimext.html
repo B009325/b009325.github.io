@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%macro Create_sas_Content_dim_Ext;
+
+data sas_Content_dim_Ext;
+format Group Link $30.;
+set CEA_DIM.SAS_CONTENT_DIMENSION;
+
+/*Insurance*/
+if upcase(content_level4) =: 'BUSINESS' then do;
+												  Group = 'Insurance';
+												  Link = 'Business Insurance';
+												  end;
+if upcase(content_level4) =: 'LIFE' then do;
+												  Group = 'Insurance';
+												  Link = 'Life Insurance';
+												  end;
+if upcase(content_level4) =: 'VAN' then do;
+												  Group = 'Insurance';
+												  Link = 'Van Insurance';
+												  end;
+if upcase(content_level4) =: 'MOTORBIKE' then do;
+												  Group = 'Insurance';
+												  Link = 'Motorbike Insurance';
+												  end;
+if upcase(content_level4) =: 'TRAVEL' then do;
+												  Group = 'Insurance';
+												  Link = 'Travel Insurance';
+												  end;
+if upcase(content_level4) =: 'PET' then do;
+												  Group = 'Insurance';
+												  Link = 'Pet Insurance';
+												  end;
+if upcase(content_level4) =: 'HEALTH' then do;
+												  Group = 'Insurance';
+												  Link = 'Health Insurance';
+												  end;
+if upcase(content_level4) =: 'BREAKDOWN' then do;
+												  Group = 'Insurance';
+												  Link = 'Breakdown Insurance';
+												  end;
+if upcase(content_level4) =: 'GADGET' then do;
+												  Group = 'Insurance';
+												  Link = 'Gadget Insurance';
+												  end;
+if upcase(content_level4) =: 'INCOME-PROTECTION' then do;
+												  Group = 'Insurance';
+												  Link = 'Income Protection';
+												  end;
+if upcase(content_level4) =: 'OVER-50-LIFE-COVER' then do;
+												  Group = 'Insurance';
+												  Link = 'Over 50s Life Cover';
+												  end;
+
+/*Utilities*/
+if upcase(content_level4) =: 'BROADBAND' then do;
+												  Group = 'Utilities';
+												  Link = 'Broadband';
+												  end;
+
+if upcase(content_level4) =: 'MOBILE-BROADBAND' then do;
+												  Group = 'Utilities';
+												  Link = 'Mobile Broadband';
+												  end;
+if upcase(content_level4) =: 'HOME-PHONE' then do;
+												  Group = 'Utilities';
+												  Link = 'Home Phone';
+												  end;
+if upcase(content_level4) =: 'DIGITAL-TV' then do;
+												  Group = 'Utilities';
+												  Link = 'Digital TV';
+												  end;
+if upcase(content_level4) =: 'GASANDELECTRICITY' then do;
+												  Group = 'Utilities';
+												  Link = 'Gas & Electricity';
+												  end;
+if upcase(content_level4) =: 'GAS-ELECTRICITY' then do;
+												  Group = 'Utilities';
+												  Link = 'Gas & Electricity';
+												  end;
+if upcase(content_level4) =: 'MOBILE-PHONE' then do;
+												  Group = 'Utilities';
+												  Link = 'Mobile Phone';
+												  end;
+/*Holidays*/
+if upcase(content_level4) =: 'HOLIDAYS' then do;
+												  Group = 'Holidays';
+												  Link = 'Holidays';
+												  end;
+/*Money*/
+if upcase(content_level4) =: 'DECLINED-CREDIT-CARDS' then do;
+												  Group = 'Money';
+												  Link = 'Credit Cards Decline';
+												  end;
+if upcase(content_level4) =: 'CREDIT-CARDS' then do;
+												  Group = 'Money';
+												  Link = 'Credit Cards';
+												  end;
+if upcase(content_level4) =: 'LOANS' then do;
+												  Group = 'Money';
+												  Link = 'Loans';
+												  end;
+if upcase(content_level4) =: 'MORTGAGES' then do;
+												  Group = 'Money';
+												  Link = 'Mortgages';
+												  end;
+if upcase(content_level4) =: 'CURRENT-ACCOUNTS' then do;
+												  Group = 'Money';
+												  Link = 'Current Accounts';
+												  end;
+if upcase(content_level4) =: 'SAVINGS-ACCOUNTS' then do;
+												  Group = 'Money';
+												  Link = 'Savings Accounts';
+												  end;
+
+/*Car Specialist Links*/
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/CLASSIC-CAR-INSURANCE') > 0 then do;
+												  Group = 'Car Specialist Links';
+												  Link = 'Classic Cars';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/4X4-CAR-INSURANCE') > 0 then do;
+												  Group = 'Car Specialist Links';
+												  Link = '4X4 Cars';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/KIT-CAR-INSURANCE') > 0 then do;
+												  Group = 'Car Specialist Links';
+												  Link = 'Kit Cars';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/FOREIGN-AND-IMPORT-CAR-INSURANCE') > 0 then do;
+												  Group = 'Car Specialist Links';
+												  Link = 'Foreign & Imports';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/MODIFIED-VEHICLE-CAR-INSURANCE') > 0 then do;
+												  Group = 'Car Specialist Links';
+												  Link = 'Modified Cars';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/PERFORMANCE-SPORTS-CAR-INSURANCE') > 0 then do;
+												  Group = 'Car Specialist Links';
+												  Link = 'Performance & Sports Cars';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/MOTORHOME-INSURANCE') > 0 then do;
+												  Group = 'Car Specialist Links';
+												  Link = 'Caravans & Motorhomes';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/CAR-INSURANCE-WITH-CLAIMS-OR-CONVICTIONS') > 0 then do;
+												  Group = 'Car Specialist Links';
+												  Link = 'Claims & Convictions';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/DISABLED CAR INSURANCE') > 0 then do;
+												  Group = 'Car Specialist Links';
+												  Link = 'Disabled Car Insurance';
+												  end;
+
+/*Home Specialist Links*/
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/HOLIDAY-HOME') > 0 then do;
+												  Group = 'Home Specialist Links';
+												  Link = 'Holiday Homes Insurance';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/LANDLORD') > 0 then do;
+												  Group = 'Home Specialist Links';
+												  Link = 'Landlord Insurance';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/STUDENTS') > 0 then do;
+												  Group = 'Home Specialist Links';
+												  Link = 'Student Insurance';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/SPECIALIST-CONSTRUCTIONS') > 0 then do;
+												  Group = 'Home Specialist Links';
+												  Link = 'Specialist Constructions';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/BUSINESS-INSURANCE') > 0 then do;
+												  Group = 'Home Specialist Links';
+												  Link = 'Business Insurance';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/UNOCCUPIED-PROPERTIES') > 0 then do;
+												  Group = 'Home Specialist Links';
+												  Link = 'Unoccupied Properties';
+												  end;
+if index(upcase(content_level4), '/SPECIALIST-INSURANCE/HIGH-RISK-PROPERTIES') > 0 then do;
+												  Group = 'Home Specialist Links';
+												  Link = 'High-risk Properties';
+												  end;
+
+if group > '' then output;
+
+run;
+%mend;
+
+
+
+</body>
+</html>
