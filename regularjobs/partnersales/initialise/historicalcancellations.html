@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%global HistoricalCount HistoricallyMatched;* Default value for matching historical sales ;
+
+/*
+	HistoricallyMatched is the minimum number of fields required to assign a cancellation to a historical sale.
+	This can be set for each partner, but defaults to 3.
+
+	This is useful to change where low quality of data from the partner will cause high volumes of matches on crap feilds.
+*/
+
+option mprint;
+/******************************************************************************/
+%macro MergeHistoricalfiles;
+/******************************************************************************/
+%if &Syserr > 0 %then %goto exit;
+
+* Delete old merged historical file;
+proc datasets lib=work nolist nodetails;
+delete &Partner._&Type.4HM;
+run;
+
+Title "&type. Historical Cancellation Files be Processed.";
+
+*Count Historical Files;
+%let HistoricalCount=0;
+proc sql noprint; select count(*) into :HistoricalCount from sashelp.vcolumn
+where index(memname,"&type.4HM")>0 and libname='WORK';
+quit;
+
+* Get List of Historical files;
+%let HistoricalFiles=;
+proc sql;
+select distinct memname into :HistoricalFiles separated by ' '
+from sashelp.vcolumn
+where index(memname,"&type.4HM")>0 and libname='WORK';
+quit;
+
+*Merge files;
+%if &HistoricalCount %then %do;
+	data _null_;file print; title;
+		put "Historical cancellations were found";
+	run;
+	data &partner._&type.4HM;
+		set	&HistoricalFiles.;
+	;run;
+	proc sql noprint; select count(*) into :HistoricalCount from &partner._&type.4HM;
+%end;
+%else %do;
+data _null_;file print; title;
+	put "There were no Historical cancellation files found";
+run;
+%end;
+
+%exit: %mend;
+
+/******************************************************************************/
+%macro HistoricalCancellations();
+/******************************************************************************/
+* Match Cancels against old sales;
+
+%if &Syserr > 0 %then %goto exit;
+%if not %symexist(HistoricallyMatched) or "&HistoricallyMatched."="" %then 
+		%let HistoricallyMatched=3;* Also re-defaulted below to 3 ;
+
+* List of Cancels and HCancels with all possible Prodids;
+proc sql noprint;
+create table &Partner._&Type._Cancels as
+select 
+	"&Partner." as Partner,
+	* 
+from &Partner._&Type._Partners, &Partner._&Type.
+where status ne 'Live' 
+	and status is not null
+;quit;
+
+* List all Possible Sales with Part matches;
+proc sql noprint;
+create table &Partner._&Type._PossibleSales as 
+select 
+	* 
+from &Partner._&Type._Cancels c 
+left outer join DW_BAU.bau_sales_t s
+	on upcase(ProductCategoryCode)="&type." and c.ProdId=Supplied_Product and transactiontype ne 'DELETED'
+where 
+	%strCompNB(email,emailaddr) 
+	or %strCompNB(QuoteRefA, PartnerQuoteReference) 
+	or %strCompNB(QuoteRefA, PartnerPolicyNo)
+	
+	or %strCompNB(PolicyRef, PartnerQuoteReference)
+	or %strCompNB(PolicyRef, PartnerPolicyNo)
+
+	or %strCompNB(QuoteRefb, PartnerQuoteReference)
+	or %strCompNB(QuoteRefb, PartnerPolicyNo)
+;
+quit;
+
+* Score each match for each field match and sort the fields out into a sensible order;
+data &Partner._&Type._MatchingCancels;
+format 
+	Score 8. Match $100. Custid QuoteID 11. SubmittedYear 8. SubmittedMonth 8. status $10.
+	TransactionType	$10. ProdCat $10. email	 EmailAddr	$100. ProdId 11. Partner $30. ProdCat $10.
+	PolicyRef  QuoteRefA	QuoteRefB	PartnerPolicyNo	PartnerQuoteReference $60. 
+	CancelD PurchD StartD QuoteD Dob yymmddd10. TransactionDate PolicyStartDate Cancelation_Date datetime18.
+	BAU_Sales_ID 8. ProductCategoryCode $10. Supplied_Product 11.	
+	Ancillary_Premium Annual_Premium AncillaryPrem AnnualPremium 11.2 
+	Partner_sales_Channel	PartnerSaleChannel	Fname	Sname	PCode	Prodname UnKey $200.
+	;
+keep
+	Score Match Custid QuoteID SubmittedYear SubmittedMonth  status 
+	TransactionType ProdCat  email	 EmailAddr	 ProdId  Partner ProdCat
+	PolicyRef  QuoteRefA	QuoteRefB	PartnerPolicyNo	PartnerQuoteReference  
+	CancelD PurchD StartD QuoteD Dob  TransactionDate PolicyStartDate Cancelation_Date 
+	BAU_Sales_ID  ProductCategoryCode Supplied_Product 	
+	Ancillary_Premium Annual_Premium AncillaryPrem AnnualPremium 
+	Partner_sales_Channel	PartnerSaleChannel	Fname	Sname	PCode	Prodname UnKey 
+	;
+
+set &Partner._&Type._PossibleSales;
+
+	Score=0;
+
+	if %strCompNB(email,emailaddr) then do Score=Score+1;  Match=%StrCat(Match, "Email"); 	end;
+
+	if %strCompNB(QuoteRefA, PartnerQuoteReference) 	then do Score=Score+1; Match=%StrCat(Match,' PQRA.PQR'); end;
+	if %strCompNB(QuoteRefA, PartnerPolicyNo) 			then do Score=Score+1; Match=%StrCat(Match,' PQRA.PPNo'); end;
+
+	if %strCompNB(PolicyRef, PartnerQuoteReference) then do Score=Score+1; Match=%StrCat(Match,' PR.PQR');end;
+	if %strCompNB(PolicyRef, PartnerPolicyNo) 		then do Score=Score+1; Match=%StrCat(Match,' PR.PPNo');end;
+
+	if %strCompNB(QuoteRefB, PartnerQuoteReference) 	then do Score=Score+1; Match=%StrCat(Match,' PQRB.PQR');end;
+	if %strCompNB(QuoteRefB, PartnerPolicyNo) 			then do Score=Score+1; Match=%StrCat(Match,' PQRB.PPNo');end;
+
+	if PurchD=datepart(TransactionDate) then do Score=Score+1; Match=%StrCat(Match,' PurchD'); end;
+	if StartD=datepart(PolicyStartDate) then do Score=Score+1; Match=%StrCat(Match,' StartD'); end;
+	if int(abs(Annual_Premium))=int(abs(AnnualPremium)) and AnnualPremium <> 0 then do Score=Score+1; Match=%StrCat(match,' AP');	end;
+	if %strCompNB(ProdId, Supplied_Product) 			then do Score=Score+1; Match=%StrCat(Match,' Prod');end;
+run;
+
+	
+* Sort using the Unique Key and highest score first;
+proc sort data=&Partner._&Type._MatchingCancels;
+by UnKey Descending Score;
+quit;
+
+* Extact first record for each Unique Key;
+data &partner._&type.4HM;
+set &Partner._&Type._MatchingCancels;
+by UnKey Descending Score;
+
+	if first.Unkey and Score>=&HistoricallyMatched.;
+
+	format status $20.;
+	status='HCancelled';
+
+run;
+/*----------------------------------------------------------------------------*/
+* Reporting and tidy up;
+
+%let rcds=0;
+%let NonSales=0;
+proc sql noprint;select count(*) into :rcds from &partner._&type.4HM;quit;
+proc sql noprint;select count(*) into :NonSales from &partner._&type.4HM where transactiontype ne 'SALE';quit;
+
+*Report Repeat Cancellations;
+%if &NonSales %then %do;
+Title "ERROR: Repeat Cancellations Exist - REMOVED";
+proc sql;
+	select *from &partner._&type.4HM where transactiontype ne 'SALE';
+	DELETE from &partner._&type.4HM where transactiontype ne 'SALE';
+quit;
+%end;
+
+* Report all Historical matches;
+%if &Testing and &rcds %then %do;
+	Title "&Partner. &type. Cancels that are Historical.";
+	proc sql;select * from &partner._&type.4HM;quit;
+%end;
+
+* Update Status within &Partner._&Type.fle;
+data &Partner._&Type.;
+modify &Partner._&Type. &partner._&type.4HM (keep=Unkey status) UPDATEMODE=NOMISSINGCHECK;
+by UnKey;
+
+run;
+/*----------------------------------------------------------------------------*/
+* reset to default value as this can be changed for each Partner;
+* Make sure that this value is the same as teh one at the start of the macro;
+%let HistoricallyMatched=3;
+
+* Tidy up files if not testing;
+%if not &Testing %then %do;
+	proc datasets lib=work nolist nodetails;
+	delete &Partner._&Type._cancels &Partner._&Type._possiblesales &Partner._&Type._MatchingCancels;
+	run;
+%end;
+
+* Delete Ouput file if there are not any historical cancellations;
+%if not &rcds %then %do;
+	proc datasets lib=work nolist nodetails;
+	delete &partner._&type.4HM;
+	run;
+%end;
+
+%exit: %mend HistoricalCancellations;
+/******************************************************************************/
+
+
+</body>
+</html>
