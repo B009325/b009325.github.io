@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/*
+	Murdo Macleod
+
+	Reduced Initialisation as bulk of hard work is moved to batch and autruns each month.
+	Run this code instead to initialise variables instead of PART1 - Input Options.
+
+	Timings: Nano.
+*/
+/*---------------------- Initialise ------------------------------------------*/
+%let Testing=0; * zero for live run, cuts commetns and outfiles;
+
+%let Today=today();
+%global Program_Start Program_End;
+
+LIBNAME Apu BASE "E:\DI_Scratch\Apu" ;
+/*----------------------------------------------------------------------------*/
+* Input values;
+data _null_;
+	call symput('Year',compress(year(intnx('month',&Today.,-1,'beginning'))));
+	call symput('MonthName',compress(upcase(put(intnx('month',&Today.,-1,'beginning'),monname3.))));
+	call symput('Month',compress(month(intnx('month',&Today.,-1,'beginning'))));
+
+	call symput('LastMonth',compress(month(intnx('month',&Today.,-2,'beginning'))));
+	call symput('LastMonthYear',compress(year(intnx('month',&Today.,-2,'beginning'))));
+run;
+
+* Date Calculations;
+data _null_;
+	call symput('Minus2Years',put(intnx('year',mdy(&Month.,1,&year.),-2,'sameday'),yymmddn8.));
+	call symput('Minus1Years',put(intnx('year',mdy(&Month.,1,&year.),-1,'sameday'),yymmddn8.));
+	call symput('NextMonth',put(intnx('month',mdy(&Month.,1,&year.),1,'beginning'),yymmddn8.));
+	call symput('ThisMonthEnd',intnx('month',mdy(&Month.,1,&year.),0,'end'));
+	call symput('ThisMonthEnd2',put(intnx('month',mdy(&Month.,1,&year.),0,'end'),yymmddn8.));
+	call symput('MonYear',put(mdy(&Month.,1,&year.),yymmn.));
+
+	format MonthTxt $2.;
+	if &Month. <= 9  then MonthTxt='0' || "&Month.";
+	else MonthTxt = "&Month.";
+	call symput ('MonthTxt ',MonthTxt);
+
+	call symput ('SOMdtkey',%sas2dtkey(intnx('month',&Today.,-1,'beginning')));
+	call symput ('EOMdtkey',%sas2dtkey(intnx('month',&Today.,-1,'end')));
+	call symput('InpLib',"E:\DI_Scratch\sales data\&year.-&monthtxt. &monthname");
+run;
+
+* Output values for manual checking;
+data CheckDates;
+	Year=&year.;
+	Month="&Month.";
+	MonthTxt="&MonthTxt.";
+	MonthName="&MonthName.";
+	
+	Minus2Years=&Minus2Years.;
+	NextMonth=&NextMonth.;
+	ThisMonthEnd=&ThisMonthEnd2.;
+	MonYear=&MonYear.;
+
+	LastMonth=&LastMonth.;
+	LastMonthYear=&LastMonthYear.;
+	EOMdtkey=&EOMdtkey.;
+	SOMdtkey=&SOMdtkey.;
+
+/*	InpLib = "E:\DI_Scratch\sales data\&year.-&monthtxt. &monthname";*/
+	InpLib ="&InpLib.";
+run;
+/*----------------------------------------------------------------------------*/
+* Assign Libraries ;
+/*libname DI "E:\DI_Scratch\sales data\&year.-&monthtxt. &monthname";*/
+libname DI "&InpLib.";
+
+Title "Initialised";
+* This allows you to rerun initialise and remove any partner files that might get matched;
+%macro Clear_old_files;
+proc sql noprint;
+select distinct memname into :delete_file_list separated by ' , '
+from sashelp.vcolumn
+where (index(memname,"4M")>0 or index(memname,"4HM")>0 ) and libname='WORK';
+quit;
+
+%if %symexist(delete_file_list) %then %do;
+	proc sql;
+	drop table &delete_file_list.;
+	quit;
+	Title "Initialised, old Partner files removed";
+%end;
+
+%mend;
+%Clear_old_files;
+
+
+proc sql;select * from checkdates;quit;
+/*----------------------------------------------------------------------------------------------------------------*/
+/* Macros for user later in program */
+/*----------------------------------------------------------------------------------------------------------------*/
+
+/******************************************************************************/
+* Some String Manipulation macros;
+* Trim;
+%macro trim(str);
+	(left(right(&str)))
+%mend;
+* StrComp;
+%macro StrComp(A,B);
+	(lowcase((left(right(&A))))=lowcase((left(right(&B)))))
+%mend;
+*StrCompNB No Blanks;
+%macro StrCompNB(A,B);
+	(lowcase((left(right(&A))))=lowcase((left(right(&B)))) and &A ne ' ' and &B ne ' ')
+%mend;
+*StrCat;
+%macro StrCat(A,B);
+	(left(right(&A) || &B))
+%mend;
+
+%macro ClearSalesWorkLibrary;
+proc sql noprint;
+select distinct memname into :file_list separated by ' '
+from sashelp.vcolumn
+where 	index(memname,"4M")=0 
+		and index(memname,"4HM")=0 
+		and libname='WORK';
+quit;
+
+proc datasets lib=work nolist nodetails;
+	delete &file_list.;
+run;
+%mend;
+
+
+%macro SummariseSalesfile(Salesfile);
+proc sql;
+create table SalesSummarySales as 
+select SaleYear, SaleMonth, ProdCat, Prodid, count(*) as Sales 
+from &Salesfile. where salestatusid=1
+group by SaleYear, SaleMonth, ProdCat, Prodid
+;
+create table SalesSummaryCancels as 
+select SaleYear, SaleMonth, ProdCat, Prodid, count(*) as Cancels
+from &Salesfile. where salestatusid=2
+group by SaleYear, SaleMonth, ProdCat, Prodid
+;
+create table SalesSummaryHCancels as 
+select HistoricalYear, HistoricalMonth, ProdCat,  Prodid, count(*) as HCancels
+from &Salesfile. where salestatusid=3
+group by HistoricalYear, HistoricalMonth, ProdCat, Prodid
+;
+create table SalesSummaryDeletes as 
+select SaleYear, SaleMonth, ProdCat, Prodid, count(*) as Deletes
+from &Salesfile. where salestatusid=4
+group by SaleYear, SaleMonth, ProdCat, Prodid
+;
+quit;
+data SalesSummaryHCancels;
+set SalesSummaryHCancels;
+	SaleYear=HistoricalYear;
+	SaleMonth=HistoricalMonth;
+
+	drop historicalyear historicalmonth;
+run;
+
+Data Sales_Summaryx;
+merge SalesSummarySales SalesSummaryCancels SalesSummaryHCancels SalesSummaryDeletes;
+by  SaleYear SaleMonth ProdCat Prodid;
+
+	Sales=coalesce(Sales,0);
+	Cancels=coalesce(Cancels,0);
+	HCancels=coalesce(HCancels,0);
+	Deletes=coalesce(Deletes,0);
+
+	NetSales = Sales - HCancels;
+	Rcds = Sales + Cancels + HCancels + Deletes;
+
+format sales cancels hcancels netsales comma11.;
+run;
+
+proc sql;
+create table Sales_Summary as 
+select saleyear, salemonth, a.prodcat, a.prodid, prodname, sales, cancels, hcancels, deletes, netsales, rcds
+from sales_summaryx a
+join krust.partners b on a.prodid=b.prodid and current
+;
+quit;
+/*
+title "Sales Summary";
+proc sql;
+	select Saleyear, SaleMonth, ProdCat, 
+		sum(netsales) as NetSales,
+		sum(Rcds) as Rcds
+	from Sales_Summary 
+	group by Saleyear, SaleMonth, ProdCat;
+
+	select * from Sales_Summary;
+quit;
+*
+/*proc datasets lib=work nolist nodetails;*/
+/*	delete SalesSummarySales SalesSummaryCancels SalesSummaryHCancels SalesSummaryDeletes;*/
+/*run;*/
+
+%mend;
+
+</body>
+</html>
