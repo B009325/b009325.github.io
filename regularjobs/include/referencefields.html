@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/*******************************************************************/
+/* Build first version of file */
+/*
+proc sql;
+create table Krust.Refs
+(
+	RefId num format 8. label='Reference Id',
+	RefCode char(30) format=$30. label='Reference Code',
+	RefValue char(30) format=$30. label='Reference Value',
+	RefDate num format 8. label='Ref Date Created'
+)
+;quit;
+
+data ForcedValues;
+length RefId  8. RefCode $30. RefValue $30. RefDate 8.;
+input RefId   RefCode RefValue  RefDate $;
+ datalines;
+00000001 SaleStatus SALE 20130101
+00000001 QuoteStatus COMPLETE 20130101
+00000001 ResponseStatus SUCCESS 20130101
+;run;
+
+proc append base=Krust.Refs  data=ForcedValues;
+run;
+*/
+/*******************************************************************/
+%macro UpdateRefFile(File,FieldName);
+/*******************************************************************/
+/*%let File=tQuotes;*/
+/*%let Field=QuoteStatus;*/
+
+proc sql noprint;
+* Force Blank=0;
+select count(*) into :Blanks from Krust.Refs where RefCode="&FieldName." and RefValue=' ';
+
+%if &Blanks.=0 %then %do;
+	insert into Krust.Refs
+		set RefId=0,
+			RefCode="&FieldName.",
+			RefValue=' ',
+			RefDate=%sas2dtkey(today())
+	;
+%end;
+
+* List existing in use;
+create table RefValuesFound as 
+select distinct &FieldName. from &File.;
+
+* Find those not yet recorded;
+create table RefValuesMissing as 
+select a.&FieldName. 
+from RefValuesFound a
+left outer join Krust.Refs b on a.&FieldName. eq b.RefValue and RefCode="&FieldName."
+where b.Refid is null
+;
+
+* Find Count of Missing Values;
+title "Missing";
+select count(*) into :MissingFreq from RefValuesMissing;
+title "Max Id";
+select max(RefId) into :MaxRefId from Krust.Refs where RefCode="&FieldName.";
+quit;
+
+/*******************************************************************/
+/* Missing were found */
+%if &MissingFreq %then %do;
+data RefsNew;
+format RefId 8. RefCode RefValue $30. RefDate 8.;
+set RefValuesMissing;
+     
+RefId=coalesce(&MaxRefId.,0)+ _n_;
+RefCode="&FieldName.";
+RefValue=&FieldName.;
+RefDate=%sas2dtkey(today());
+
+
+drop &FieldName.;
+run;
+	
+proc append base=Krust.Refs  data=RefsNew;
+run;
+
+title "New References found for &FieldName.";
+proc sql;select * from RefsNew;quit;
+%end; %else %do;
+/*******************************************************************/
+/* Nothing Missing */
+/*title;*/
+/*	data _null_;*/
+/*	file print;*/
+/*		put "No new references found for &FieldName.";*/
+/*	run;*/
+%end;
+
+proc sort data=Krust.Refs;
+by RefCode RefId;
+run;
+%mend;
+
+/*******************************************************************/
+/* Add Ref Value to file */
+/*******************************************************************/
+/*
+%let File=tQuotes;
+%let Field=QuoteStatus;
+*/
+%macro AddRefId(File,Field);
+
+proc sql noprint;
+select name into :FieldList separated by ' '
+from sashelp.vcolumn
+where libname='WORK' and memname=upcase("&file.");
+quit;
+
+data _null_;
+/*data test;*/
+	x=index(upcase("&FieldList."),upcase("&Field."));
+	Selection=substr("&FieldList.",1,x+length("&Field.")-1);
+
+	call symput('Selection',Selection);
+run;
+
+/* Create huge log warning and takes time */
+/*proc sql;*/
+/*create table &file. as*/
+/*select &Selection.,  RefId as &Field.Id, a.* */
+/*from &File. a*/
+/*left outer join Krust.Refs b on a.&Field. = RefValue and RefCode="&Field."*/
+/*;*/
+/*quit;*/
+
+proc sort data=&file.;
+by &Field.;
+run;
+
+proc sql;
+create table TempRefs as 
+select 
+	RefValue as &Field., 
+	RefId as &Field.Id
+from Krust.Refs 
+where RefCode="&Field."
+order by RefValue
+;
+quit;
+
+data &file.;
+retain &Selection. &Field.Id;
+merge &file. (in=a) TempRefs(in=b);
+by &Field.;
+
+if a;
+run;
+
+%mend;
+
+
+
+</body>
+</html>
