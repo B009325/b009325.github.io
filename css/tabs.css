@@ -137,7 +137,6 @@
 	-o-transform: translateX(250px);
 	-ms-transform: translateX(250px);
 	transform: translateX(250px);
-	display:inline;
 }
 
 .content-2 a {
