@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%macro SafeDelete(SD_File);
+
+%let SD_MaxSaves=3;
+%let SD_SavedFiles=;
+
+data _null_;
+	MaxFile=compress("SAFE_DELETE" || "&SD_MaxSaves.");
+	call symput('SD_MaxFile',MaxFile);
+run;
+proc datasets lib=apu nolist nodetails;
+		delete &SD_Maxfile.;
+run;
+
+proc sql;select distinct memname into :SD_SavedFiles separated by " " from sashelp.vcolumn where upcase(libname)=upcase('APU') and index(compress(memname),'SAFE_DELETE')>0;quit;
+
+data _NULL_;
+	SavedFiles="&SD_SavedFiles.";
+	Max=&SD_MaxSaves.;
+	do while( index(SavedFiles,compress("SAFE_DELETE" || Max))=0 and Max);
+		Max=Max-1;
+	end;
+
+	call symput('SD_Max',Max);
+run;
+
+%macro Rename_Saves(SD_Num);
+%do %while (&SD_Num. and not &Syserr.);
+	data _null_;
+		x=&SD_Num.;
+		y= x + 1;
+		call symput('SD_Num',x-1);
+		call symput('SD_File1',compress("SAFE_DELETE" || x));
+		call symput('SD_File2',compress("SAFE_DELETE" || y));
+	run;
+
+	proc datasets library=apu;
+	change &SD_File1. = &SD_File2.;
+	run;
+%end;
+%mend;
+
+%Rename_Saves(&SD_Max.);
+
+data apu.SAFE_DELETE1;
+set &SD_file.;
+run;
+
+data _null_;
+ 	File="&SD_file.";
+ 	P = index(File,".");
+ 	lib=substr(file, 1, p-1);
+	delfile=substr(file, p+1);
+
+	call symput('SD_LIB',lib);
+	call symput('SD_DELFILE',delfile);
+run;
+
+%if not &syserr. %then %do;
+proc datasets lib=&SD_lib. nolist nodetails;
+	delete &SD_delfile.;
+run;
+%end;
+
+%mend;
+
+
+</body>
+</html>
