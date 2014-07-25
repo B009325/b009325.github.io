@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/*
+	Murdo Macleod
+
+	This is to be a monthly job to replace the PART 1 - Input Options
+	The Initialisation code will need to be run prior to this - only want one version 
+	of the code to maintain.
+
+	Timings: 1hr 23 mins for Nov
+
+*/
+%let program_start=%sysfunc(time(),time8.0);
+%put &program_start.;
+
+/*---------------------- Create folders for the Year\Month in DI scratch ----------------------*/
+%macro CreateFolder(dir);
+%if %sysfunc(fileexist("&dir.")) %then %do;
+%put File Exists;
+%end;
+%else %do;
+%put File Does Not Exist;
+options noxwait noxsync;
+x "%str(md %"&dir.%")";
+%end ;
+%mend;
+
+/*%MACRO DONTRUNANTHYING;*/
+
+%CreateFolder(&inplib.);
+/*%CreateFolder(E:DI_Scratch\sales data\&year.\&Month.\Output);*/
+
+
+* Extract all CAR Responses in the last 2 years;
+* Timings 9:13.95;
+proc sql;
+ CREATE TABLE apu.Sales_Load_CarResponses AS SELECT
+   custid,
+   prodid,
+	 QutnId,
+	 RqstDtKey,
+     CQRspeKey,
+	 CQRqstKey,
+	 RspeDtKey,
+	 left(upcase(compress(PtnrQutnRef))) as CarQR,
+	 RspeDurtn as Duration,
+	 QutnRspeRank as Rank
+ FROM DW_FACT.CarQutnRspe
+ where RqstDtKey ge &Minus1Years. and RqstDtKey lt &NextMonth. and QutnId gt 0 and prodid gt 0
+;
+quit;
+
+proc sql noprint;create table CarResponseCustid as select distinct custid from apu.Sales_Load_CarResponses order by custid;quit;
+
+* Extract all HOME Responses in the last 2 years;
+* Timings 1min;
+proc sql;
+ CREATE TABLE apu.Sales_Load_HomeResponses AS SELECT
+     custid,
+     prodid,
+	 QutnId,
+	 RqstDtKey,
+     HQRspeKey,
+	 HQRqstKey,
+	 RspeDtKey,
+	 left(upcase(compress(PtnrQuoteRef))) as HomeQR,
+	 RspeDurtn as Duration,
+	 QutnRspeRank as Rank
+ FROM DW_FACT.HomeQutnRspe
+ where RqstDtKey ge &Minus1Years. and RqstDtKey lt &NextMonth. and QutnId gt 0 and prodid gt 0
+;
+quit;
+proc sql noprint;create table HomeResponseCustid as select distinct custid from apu.Sales_Load_HomeResponses order by custid;quit;
+
+* Extract all CAR Customer details;
+* Timings: 3:22.03;
+data apu.Sales_Load_CarCustomer;
+set DW_DIM.Drvr(keep=custid Fname Sname dobdtkey Pcode);
+length key1 key2 key3 key4 key5 $200.;
+key1=upcase(compress(compress(Fname,'','ak')||compress(Sname,'','ak')||Pcode));
+key2=upcase(compress(compress(Fname,'','ak')||compress(upcase(Sname),'','ak')||dobdtkey));
+key3=upcase(compress(compress(Fname,'','ak')||pcode||dobdtkey));
+key4=upcase(compress(compress(Sname,'','ak')||pcode||dobdtkey));
+key5=upcase(compress(compress(substr(left(Fname),1,1),'','ak')||compress(Sname,'','ak')||Pcode||dobdtkey));
+run;
+
+* remove custids without quote in last year;
+proc sort data=apu.Sales_Load_CarCustomer;
+by custid;
+run;
+
+data apu.Sales_Load_CarCustomer;
+merge apu.Sales_Load_CarCustomer (in=a) CarResponseCustid (in=b);
+by custid;
+if a and b;
+run;
+
+*Extract all Home Customer details;
+* Timings: 20s;
+proc sql;
+create table HomeCustomer1 as
+select a.custid, a.Fname, a.Sname, a.DOBDtKey, b.housepcode as pcode
+from DW_DIM.HomePolHol a 
+left join dw_dim.homeprpty b on a.HQRqstKey = b.HQRqstKey;
+quit;
+
+* remove custids without quote in last year;
+proc sort data=HomeCustomer1;
+by custid;
+run;
+
+data apu.Sales_Load_HomeCustomer;
+merge HomeCustomer1 (in=a) HomeResponseCustid (in=b);
+by custid;
+if a and b;
+run;
+
+data apu.Sales_Load_HomeCustomer;
+set HomeCustomer1(keep=custid Fname Sname dobdtkey Pcode);
+length key1 key2 key3 key4 key5 $200.;
+key1=upcase(compress(compress(Fname,'','ak')||compress(Sname,'','ak')||Pcode));
+key2=upcase(compress(compress(Fname,'','ak')||compress(upcase(Sname),'','ak')||dobdtkey));
+key3=upcase(compress(compress(Fname,'','ak')||pcode||dobdtkey));
+key4=upcase(compress(compress(Sname,'','ak')||pcode||dobdtkey));
+key5=upcase(compress(compress(substr(left(Fname),1,1),'','ak')||compress(Sname,'','ak')||Pcode||dobdtkey));
+run;
+
+* Customer Email Addresses;
+* Timings: 3mins 30secs;
+proc sql;
+create table apu.Sales_Load_CustEmail as 
+select 
+	Custid,
+	upcase(Compress(EmailAddr)) as EmailAddr
+from DW_DIM.cust
+where index(emailaddr,'@')>0 and emailaddr not in ('1@1.CO.UK')
+order by EmailAddr
+;
+quit;
+
+* Sort for quicker processing;
+proc sort data=apu.Sales_Load_CarResponses; 
+by Prodid;
+run;
+proc sort data=apu.Sales_Load_HomeResponses; 
+by Prodid;
+run;
+
+/*-------------------------------------------------------------------*/
+%LET Program_End=%sysfunc(time(),time8.0);
+%put "Program Ended at:	&Program_End.";
+data _null_;
+file print;
+Title "Program Run Time";
+put "Program Started at:	&Program_Start.";
+put "Program Ended at:	&Program_End.";	
+run;
+/*-------------------------------------------------------------------*/
+
+*build list of sample QuoteRefs;
+data apu.Sales_Load_QuoteRefSample;
+set apu.Sales_Load_HomeResponses (rename=(HomeQR=QuoteRef)) apu.Sales_Load_CarResponses (rename=(CarQR=QuoteRef));
+by Prodid;
+
+format found 3.;
+retain found;
+
+if first.prodid and QuoteRef ne ' ' then found=1; else; found=0;
+
+if first.prodid and QuoteRef ne ' ';
+if Found=0 and QuoteRef ne ' ';
+
+
+keep Prodid QuoteRef found;
+
+run;
+
+data apu.Sales_Load_Sales;
+set krust.sales;
+drop x;
+stop;
+run;
+
+/*%MEND;*/
+
+/*
+data krust.sales;
+set krust.sales;
+drop x;
+run;
+
+*/
+
+</body>
+</html>
