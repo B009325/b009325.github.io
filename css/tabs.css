@@ -137,6 +137,9 @@
 	-o-transform: translateX(250px);
 	-ms-transform: translateX(250px);
 	transform: translateX(250px);
+}
+
+.content-2 a {
 	padding-left:50px;
 }
 
