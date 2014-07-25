@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+
+%global _LogthisProcessName _LogthisProcessFlow _LogStopTime _LogWaitTime;
+
+%let _LogStopTime=%sysevalf('15:00:00't);
+%let _LogWaitTime=30; *Seconds to wait before retry;
+
+/*
+
+	Functions Available:
+	
+	Register (Flow, ProcessName) 	* Logs processes as started and stores process name;
+	RegisterProcessing() 			* Logs that program is now Processing;
+	RegisterComplete() 				* Logs that program is now Complete;
+	RegisterWaiting() 				* Logs that program is now Waiting;
+	RegisterFailed() 				* Logs that program is now Failed;
+	RegisterCancelled()				* Logs that program is now Cancelled;
+
+	LogClearToday(Flow, ProcessName) 	* Clears all entries for today;
+	LogWaitComplete(ProcessName); 		* Wait until ProcessName is Complete;
+
+	LogListBatch;						* Lists All batch entries for Today;
+	LogListBatchComplete;				* Lists Complete batch entries for Today;
+	
+	ForceRegisterComplete(Flow,ProcessName); * If a sub process steals the flow details;
+	
+	Log(jobname)  *creates external log file for job in E:\DI_Scratch\WPS Code\&_IncludeCodeDir.\Temp\;
+*/
+
+
+
+/*options mprint mlogic;*/
+*----------------------------------------------------------------------;
+* Macros ;
+*----------------------------------------------------------------------;
+%macro SasFileExists(Filename);
+	%if %sysfunc(exist(&FileName.)) %then %do; 1
+	%end; %else %do; 0
+	%end;
+%mend;
+
+%macro Sas2Dtkey(sasDate);
+	(input(put(&sasDate,yymmddn8.),8.))
+%mend;
+
+%macro LogEvent(LogSts);
+
+data toLogInsert;
+
+		format Flow ProcessName $30. LogDate 8. LogTime $8. LogSts 3. LogCode $10.;
+				
+		Flow="&_LogthisProcessFlow.";
+	  	ProcessName="&_LogthisProcessName.";
+        LogDate=%sas2dtkey(today());
+        LogTime=substr(put(datetime(),datetime16.),9,8);
+        LogSts=&LogSts.;
+        
+        LogCode = "Error";
+		if &LogSts.=1 then LogCode = "Started";
+		if &LogSts.=2 then LogCode = "Waiting";
+        if &LogSts.=3 then LogCode = "Processing";
+		if &LogSts.=4 then LogCode = "Complete";
+		if &LogSts.=-1 then LogCode = "Failed";
+		if &LogSts.=5 then LogCode = "Overtime";
+		if &LogSts.=6 then LogCode = "Cancelled";
+		
+		call symput('Code',LogCode);
+run;
+
+%if &LogSts.=-1 %then %do;
+				%put &SYSERRORTEXT;
+				%put Error: &syserr;
+				%put Warning: &Syscc;
+%end;
+
+proc sql;insert into moe.log select * from toLogInsert;quit;
+
+%put *** Log Processing Event &_LogthisProcessFlow &_LogthisProcessName. &Code ***;
+
+/*	proc sql;*/
+/*		insert into Moe.Log*/
+/*    	set */
+/*	    	Flow="&_LogthisProcessFlow.",*/
+/*	    	ProcessName="&_LogthisProcessName.",*/
+/*        	LogDate=%sas2dtkey(today()),*/
+/*        	LogTime=put(datetime(),datetime16.),*/
+/*        	LogSts=&LogSts.,*/
+/*        	LogCode=case     when &LogSts.=1 then "Started"*/
+/*                         	when &LogSts.=2 then "Waiting"*/
+/*                         	when &LogSts.=3 then "Processing"*/
+/*                         	when &LogSts.=4 then "Complete"*/
+/*                         	when &LogSts.=-1 then "Failed"*/
+/*							when &LogSts.=5 then "Overtime"*/
+/*					     	else "Error" end*/
+/*	    ;*/
+/*	quit;*/
+%mend;
+
+*----------------------------------------------------------------------;
+* Main Macros for Log Procesing ;
+*----------------------------------------------------------------------;
+%macro Register(Flow, ProcessName);
+
+* Close any old batch log;
+	proc printto;
+	run;	
+
+* Change Batch job logs;
+	%if "&SysEnv."="BACK" %then %do;
+		%put "***BATCH MODE OPERATION DETECTED***";
+	
+	/*	%let job = 3.0.2_Get_Load_Dates ;*/
+		%let SAS_LogDateTimeStamp = &Flow &ProcessName %sysfunc(putn(%sysfunc(date()),yymmdd10.))-%sysfunc(translate(%sysfunc(putn(%sysfunc(time()),timeampm12.)),.,:));
+		%put &SAS_LogDateTimeStamp;
+		%let LogOutFile  = E:\DI_SCRATCH\WPS CODE\Logs\&SAS_LogDateTimeStamp..txt;
+		%let LstOutFile  = E:\DI_SCRATCH\WPS CODE\Logs\&SAS_LogDateTimeStamp..lst;
+
+		filename logfile "&LogOutFile";
+		filename lstfile "&LstOutFile";
+
+		proc printto log=logfile new;
+		run;
+		proc printto print=lstfile new;
+		run;
+	
+	%end;
+
+	data _null_;
+		call symput('_LogthisProcessName',"&ProcessName.");
+		call symput('_LogthisProcessFlow',"&Flow.");
+	run;
+
+* Update Logs;	
+	%if %SasFileExists(Moe.Log)=0 %then %do;
+	proc sql;
+	create table Moe.Log (
+		Flow char(30) label="Process Flow",
+		ProcessName char(30) label="Process Name",
+		LogDate num format=8. label="Log Date",
+		LogTime char(8) label="Log Time",
+		LogSts num format=3. label="Log Sts",
+		LogCode char(10) label="Log Code"
+	);
+	quit;
+	
+	%end;
+	
+	%LogEvent(1);
+
+%mend;
+
+*----------------------------------------------------------------------;
+%macro LogClearToday(ProcessName);
+*----------------------------------------------------------------------;
+	proc sql;
+	delete from Moe.log where processName="&ProcessName." and LogDate=%sas2dtkey(today());
+	quit;
+%mend;
+*----------------------------------------------------------------------;
+%macro RegisterProcessing;%LogEvent(3);%mend;
+%macro RegisterWaiting;%LogEvent(2); %mend;
+%macro RegisterFailed;%LogEvent(-1); %mend;
+%macro RegisterCancelled;%LogEvent(6);%mend;
+
+*----------------------------------------------------------------------;
+%macro LogWaitComplete(ProcessName);
+*----------------------------------------------------------------------;
+	%let WaitContinue=1;
+	%let Wait=0;
+
+	data _null_;
+		call symput('ProcessName',"'" || upcase("&ProcessName.") || "'");
+		call symput('Today',%sas2dtkey(today()));
+	run;
+	
+	%do %while(&WaitContinue.);
+
+	* Find most recent status of the Process;
+		%let LogCode=;
+		proc sql noprint;
+			CONNECT to ODBC as DW(DSN="&_Moe." );
+			select LogCode into :LogCode from connection to DW
+			(
+				with Sample as (
+					select *,
+						ROW_NUMBER() OVER
+				         (
+				             PARTITION BY ProcessName
+				             order by LogDate desc, Logtime desc, LogSts desc
+				         ) AS Recency
+					from &_Moe..dbo.Log where upper(ProcessName)=&ProcessName. and logdate=&Today.
+				)
+				select LogCode from Sample where Recency=1
+			);
+			
+			DISCONNECT from DW;
+		quit;
+		
+		*Process Complete check;
+		%if "&LogCode." eq "Complete  " %then %do;
+			%put "&ProcessName. Process is Complete";
+			%let WaitContinue=0;
+		%end; 
+		
+		%if  "&_INCLUDESYSTEM."="DEV" %then %do;
+			%put "&ProcessName. Running in DEV no waiting please.";
+			%let WaitContinue=0;
+		%end;
+		
+
+		* StopTime Check ;
+		%if &_LogStopTime. < %sysfunc(time()) and "&_INCLUDESYSTEM."="LIVE" and &WaitContinue.=1 %then %do;
+			%put "Program Exit due to time of execution.  StopTime exceeded.";
+			%LogEvent(5);/* Overtime */
+			%abort abend;
+		%end;
+
+		%if &syserr. or &syscc.>4 %then %do;
+			%put "Program Exit due to ERROR.";
+			%put &SYSERRORTEXT;
+			%put Error: &syserr;
+			%put Warning: &Syscc;
+			%let WaitContinue=0;
+			%abort abend;
+		%end;
+		
+/*		%let WaitContinue=0;*/
+/*		%put "&LogCode.";*/
+
+		%if &WaitContinue. %then %do;
+				data _null_;x=sleep(&wait.);run;
+				%let Wait=&_LogWaitTime.; 
+				%let _LogWaitTime=%eval(&_LogWaitTime+30);
+		%end;
+
+	%end;
+%mend;
+*----------------------------------------------------------------------;
+%macro RegisterComplete;
+	data _null_;x=sleep(1);run;
+	%put &syscc.;
+	%if  &syscc.>4 %then %do;
+		%LogEvent(-1); 
+	%end; %else %do;
+		%LogEvent(4); 
+	%end;
+%mend;
+*----------------------------------------------------------------------;
+%macro ForceRegisterComplete(Flow,ProcessName);
+
+	data _null_;
+		call symput('_LogthisProcessName',"&ProcessName.");
+		call symput('_LogthisProcessFlow',"&Flow.");
+	run;
+	
+	%put &syscc.;
+	%if  &syscc.>4 %then %do;
+		%LogEvent(-1); 
+	%end; %else %do;
+		%LogEvent(4); 
+	%end;
+%mend;
+*----------------------------------------------------------------------;
+%macro	LogListBatch;						* Lists All batch entries for Today;
+title "Batch Logs for &_LogthisProcessFlow.";
+proc sql;
+	select * from moe.log
+	where Flow="&_LogthisProcessFlow." and logdate=%sas2dtkey(today()) 
+	order by logdate, logtime desc;
+quit;
+%mend;
+*----------------------------------------------------------------------;
+%macro LogListBatchComplete;				* Lists Complete batch entries for Today;
+title "Batch Logs for &_LogthisProcessFlow.";
+proc sql;
+	select * from moe.log
+	where Flow="&_LogthisProcessFlow." and logdate=%sas2dtkey(today()) and logsts in (4,-1) 
+	order by logdate, logtime desc;
+quit;
+%mend;
+*----------------------------------------------------------------------;
+
+*----------------------------------------------------------------------;
+%macro log(jobname);
+
+%let job = &jobname.;
+%let SAS_LogDateTimeStamp = &job %sysfunc(putn(%sysfunc(date()),yymmdd10.))-%sysfunc(translate(%sysfunc(putn(%sysfunc(time()),timeampm12.)),.,:));
+%put &SAS_LogDateTimeStamp;
+%let LogOutFile  = E:\DI_Scratch\WPS Code\&_IncludeCodeDir.\Temp\&SAS_LogDateTimeStamp..txt;
+%let LstOutFile  = E:\DI_Scratch\WPS Code\&_IncludeCodeDir.\Temp\&SAS_LogDateTimeStamp..lst;
+
+filename logfile "&LogOutFile";
+filename lstfile "&LstOutFile";
+
+proc printto log=logfile new;
+run;
+
+proc printto print=LstFile new;
+run;
+
+%mend log;
+*----------------------------------------------------------------------;
+
+</body>
+</html>
