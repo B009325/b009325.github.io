@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/*
+	DONT FORGET TO RUN COMPARE SALES FILE TO CONTROL SHEET FIRST
+*/
+
+data _null_;
+LastMonthTxt=put(mdy(&month.,1,&year.),monname.);
+call symput('LastMonthTxt',LastMonthTxt);
+run;
+
+%macro SendEmail;
+%if &SysErr %then %goto exit;
+
+%let subject="Sales Load Progress Report for&LastMonthTxt.";
+/***********************************************************************************************/
+/* Send the Email */
+/***********************************************************************************************/
+filename mymail email ("murdo.macleod@I.tescobank.com" "05_TB_TESCOCOMPAREMITEAM@uk.tesco.com" "John.Blevins@tescobank.com"  "Gillian.McInnes@tescobank.com" 
+	"kirsty.stewart@tescobank.com" "will.furneaux@i.tescobank.com" "euan.ballantyne@i.tescobank.com" "claire.benson@i.tescobank.com") 
+/*filename mymail email ("murdo.macleod@tescobank.com" "ross.thomson@tescobank.com") */
+/*filename mymail email ("murdo.macleod@I.tescobank.com" ) */
+/*filename mymail email ("05_TB_TESCOCOMPAREMITEAM@uk.tesco.com") */
+subject=&Subject. 
+/*attach=("&dir.&file.")*/
+lrecl=256 type="TEXT/HTML";
+ods _all_ close;
+ods html3 body=mymail style=sasweb;
+
+/** Start writing the email in a DATA _NULL_ step **/
+
+data _null_;
+file print;
+title;
+    put "Hello,"; 
+	put "Please find Sales Load update below.";
+	put '&nbsp;';
+    put "Kind regards,"; 
+    put "The Data And Insight Team"; 
+	
+run;
+
+%ReportSalesFiles;
+
+ods _all_ close;
+ods listing;
+
+%Exit:
+%mend;
+
+%ReportSalesFiles;
+%SendEmail;
+
+</body>
+</html>
