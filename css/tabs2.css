@@ -143,6 +143,10 @@
 	padding-left:15px;
 }
 
+.content-2, .content-2a {
+	display:inline;
+}
+
 .tabs input.tab-selector-1:checked ~ .content .content-1,
 .tabs input.tab-selector-2:checked ~ .content .content-2 .content-2a,
 .tabs input.tab-selector-3:checked ~ .content .content-3,
