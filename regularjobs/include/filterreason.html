@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%macro StripCRLFTAB(Str);
+(
+			TRANWRD(TRANWRD(TRANWRD(&Str. ,'0D'x,''),'0A'x,''),'09'x,'')
+)
+%mend;
+
+
+%macro HTMLtext(Str,Tag);
+(
+left(substr(&str.,
+	find(&str.,"<"  || &tag. || ">") + 2 + length(&tag.),
+	find(&str.,"</" || &tag. || ">") 
+		-(
+			find(&str.,"<" || &tag.|| ">") + 2 + length(&tag.)
+		)
+	)	)
+)
+%mend;
+
+
+%macro FilterReasons(FileIn, FileOut);
+data &FileOut.;
+format Reason $100. FilterDetails $1024.;
+set &FileIn.;
+/*OPTION MPRINT MLOGIC;*/
+
+/*data Reasons;*/
+/*format Reason $100. FilterDetails $200.;*/
+/*set Responses;*/
+
+	*Filters;
+	If ResponseStatusCode='FILTERED' and index(FilterDetails,"Code")>0 then Reason=%HTMLtext(FilterDetails,"Code");
+
+	*Declines no description;
+	else if index(FilterDetails,"</Description>")=0 and index(FilterDetails,"</string>")>0 then Reason=%HTMLtext(FilterDetails,"string");
+
+	*Declines with description;
+	else if index(FilterDetails,"<Description>")>0 then do;
+		Description = %HTMLtext(FilterDetails,"Description"); 
+		Description = compress(Description ,'0D'x);
+		Description = compress(Description ,'0A'x);
+
+		v=index(Description,'MessageID:')-1; if v<=0 then v=200;	
+		x=index(Description,'RawRequest')-1; if x<=0 then x=200;
+		y=index(Description,'Direction:')-1; if y<=0 then y=200;
+		
+		z=min(v,x,y);
+
+		Reason=substr(Description,1,z);
+
+		if index(filterdetails,"- RULE RESPONSE")>0 then 
+			if index(filterdetails,"****") then 
+				reason= compress(substr(filterdetails,index(filterdetails,"****")+5, index(filterdetails,"</Description>")-1-index(filterdetails,"****")-4),"*");
+			else
+				reason= substr(filterdetails,index(filterdetails,"<Description>")+13, index(filterdetails,"- RULE RESPONSE")-1+13-index(filterdetails,"<Description>"));
+		else if index(lowcase(filterdetails),"validation error:")>0 
+			then reason= substr(filterdetails,index(filterdetails,"Instance validation error:")+17, index(filterdetails,"</Description>")-1-index(filterdetails,"Instance validation error:")-26	);
+	end;
+
+/* Specific Checks */
+	if index(Reason, 'Invalid postcode')>0 then Reason='Invalid postcode';
+	else 
+	/*Invalid abiCode [53601701] for vehicle.*/
+	if index(Reason, 'Invalid abiCode')>0 then Reason='Invalid abiCode';
+	else
+/*	Invalid vehicle keptPostcode*/
+	if index(Reason, 'Invalid vehicle keptPostcode')>0 then Reason='Invalid vehicle keptPostcode';
+/*	Rejecting due to premium: */
+	else
+	if index(Reason, 'Rejecting due to premium:')>0 then Reason='Rejecting due to premium';
+	else
+	if index(Reason, 'Business logic validation failed with the following fault')>0 then Reason='Business logic validation failed';
+	else
+	if index(Reason, 'Connection Lost/Timeout')>0 then Reason='Connection Lost/Timeout';
+/*(Collingwood filter) Quote denied due to policy holder's age*/
+	else
+	if index(Reason, "(Collingwood filter) Quote denied due to policy holder's age")>0 then Reason='Policy Holders Age';
+/*ABI Code Not Found	*/
+	else
+	if index(Reason, 'ABI Code Not Found')>0 then Reason='Invalid abiCode';
+/*Rate declined*/
+else
+	if index(Reason, 'Rate declined')>0 then Reason='Rate declined';
+/*Rate referred */
+else
+	if index(Reason, 'Rate referred')>0 then Reason='Rate referred';
+/*Rejecting broker does not accept modified vehicles.*/
+else
+	if index(Reason, 'Rejecting broker does not accept modified vehicles.')>0 then Reason='Broker does not accept modified vehicles';
+/*postcode being different to address*/
+else
+	if index(Reason, 'postcode being different to address')>0 then Reason='Postcode different to address';
+/*Code><string>FAIL_INSURER</string></Code><Description>description: Input Validation Error: cvc-patt*/
+else
+	if index(Reason, 'description: Input Validation Error:')>0 then Reason='Input Validation Error';
+/*MessageID : 20653d37-742c-4ebb-a7ec-dbb03e941c1b, An error occurred when calulating the premium, thi*/
+else
+	if index(Reason, 'error occurred when calulating the premium')>0 then Reason='Error calculating premium';
+/*Server was unable to read request. ---&gt; There is an error in XML document (1, 2934). ---&gt; Inpu*/
+else
+	if index(Reason, 'Server was unable to read request')>0 then Reason='Server was unable to read request';
+/*There has been a transform error[Axa returned error: Car was not found for ExternalId: 16004201]*/
+else
+	if index(Reason, 'transform error')>0 then Reason='transform error';
+
+
+
+
+	drop v x y z description;
+
+run;
+%mend;
+
+</body>
+</html>
