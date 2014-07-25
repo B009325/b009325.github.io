@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%macro siteconfisp(table);
+proc sql;
+select sas_isp_dimension into: SiteConfISP separated by ','
+from CEA_DIM.SAS_ISP_DIMENSION
+where left(isp) like '79.141.40.%'
+OR left(isp) like '255.255.255.%'
+OR left(isp) like '217.156.138.%'
+OR left(isp) like '80.231.69.%'
+OR left(isp) like '77.67.57.%'
+OR left(isp) like '80.64.57.%'
+OR left(isp) like '85.133.71.%'
+OR left(isp) like '77.68.69.%'
+OR left(isp) like '217.33.241.%'/*London - British Telecom*/
+OR left(isp) like '213.216.145.%'/*London - Cable & Wireless*/
+OR left(isp) like '217.156.150.%'/*London - Global Crossing / Level3*/
+OR left(isp) like '146.101.166.%'/*London - Telstra*/
+OR left(isp) like '193.129.103.%'/*London - Verizon*/
+OR left(isp) like '194.129.73.%'/*London - Verizon*/
+OR left(isp) like '195.11.160.%'
+OR left(isp) like '195.50.65.%'
+OR left(isp) like '195.11.162.%'
+OR left(isp) like '109.232.59.%'
+OR left(isp) like '195.95.131.%'
+OR left(isp) like '79.141.40.%'
+OR left(isp) like '64.39.102.%'
+OR left(isp) like '206.31.247.%'
+OR left(isp) like '220.181.108.%' /* MineField Beijing Banquent*/
+OR left(isp) like '199.30.24.%' /* Mozilla California Micom Comms*/
+OR left(isp) like '199.30.25.%' /* Mozilla California Micom Comms*/
+;
+quit;
+
+proc sql;
+select sas_usersource_dimension into: SiteConfUSD separated by ','
+from CEA_DIM.SAS_USERSOURCE_DIMENSION
+where index(compress(lowcase(usersource5)),'siteconfidence')>0
+or sas_usersource_dimension in (35,1514,23546,606)  /*606 is an overnight google robot*/
+or index(compress(lowcase(usersource5)),'gomez advisors')>0
+or index(compress(lowcase(usersource2)),'china')>0
+or index(compress(lowcase(usersource2)),'staminus')>0
+/*or (sas_usersource_dimension in (28375) and javaenable=0)*/
+or sas_usersource_dimension in (28375)
+;
+quit;
+
+%put &SiteConfUSD.;
+
+data &table.;
+set &table.;
+where SAS_ISP_DIMENSION not in (&SiteConfISP.) and  SAS_USERSOURCE_DIMENSION not in (&SiteConfUSD.);
+run;
+
+
+%mend;
+
+</body>
+</html>
