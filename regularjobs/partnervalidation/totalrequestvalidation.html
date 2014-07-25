@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+
+
+	/*
+- Header ---------------------------------------------------------------------------
+Program		:       Total validation warnings
+Author		:   	Murdo Macleod
+Customer	: 		TC MI
+Scheduling	: 		Daily
+
+- Requirements ---------------------------------------------------------------------
+	Report on the Partner data and show any abnormal values.
+
+- Benefits -------------------------------------------------------------------------
+	For validation of Tesco Compare and Partner processes.
+
+- Notes ----------------------------------------------------------------------------
+
+
+- Change Log -----------------------------------------------------------------------
+Date    	StaffId  				Description  
+08/02/2012	IK74 Murdo Macleod		First Build
+
+					
+------------------------------------------------------------------------------------
+/****************************************************************/
+
+
+/****************************************************************/
+/* constants */
+/****************************************************************/
+%global volmax_std volmin_std volcheckrange volSample_EndDate volSample_StartDate;
+
+/* Standard deviation multiplier */
+%let volmax_std=1 ; 
+%let volmin_std=1;
+/* deviation sample range in DAYS */
+%let volcheckrange=210; 		
+/****************************************************************/
+/* Date Calculations */
+/****************************************************************/
+/*
+	volSample dates are for date range for sampling volume of requests.
+	ErrChk dates define the date range to check volumes and report. 
+*/
+data _null_;
+	call symput('BaseDate',1*put(today()-7,yymmddn8.));
+	call symput('today',put(today(),yymmddn8.));
+/* ErrChk_EndDate = Yesterday */
+/*	call symput('ErrChk_EndDate',put(intnx('days',today(),-1,'S'),yymmddn8.));*/
+run;
+
+/*proc sql noprint;*/
+	/* ErrChk_StartDate = Last working day before today */
+/*	select max(dtkey) into :ErrChk_StartDate from dw_dim.date */
+/*	where &Basedate. le dtkey lt &Today.*/
+/*		and isholidayind='N'*/
+/*		;*/
+/*quit;*/
+
+/***********************************************/
+/* For Testing only */
+/*%let ErrChk_StartDate = 20120612;*/
+/***********************************************/
+
+data _null_;
+/* Sample End Date is the day before ErrChk start date */
+	volSample_EndDate  = intnx('days',input(&ErrChk_StartDate.,anydtdte12.),-1,'S'); 
+	CALL symput('volSample_EndDate',put(volSample_EndDate,yymmddn8.)); 		
+
+/* Calculate Sample StartDate from ErrChk_StartDate and volCheckrange */
+	volSample_StartDate  = intnx('days',input(&ErrChk_StartDate.,anydtdte12.),-1 - &volCheckRange.,'S'); 
+	CALL symput('volSample_StartDate',put(volSample_StartDate,yymmddn8.)); 		
+run;
+
+data Checkdates_vol;
+	volSample_StartDate=&volSample_StartDate.;
+	volSample_EndDate=&volSample_EndDate.;
+
+	ErrChk_SD=&ErrChk_StartDate.;
+	ErrChk_ED=&ErrChk_EndDate.;
+
+	Today=&today.;
+	volMax_std=&volmax_std.;
+	volMin_std=&volmin_std.;
+	volcheckrange=&volcheckrange.;
+	Today_weekday=weekday(input(&today.,anydtdte12.));
+run;
+
+/*****************************************************************************/
+/* Extract Daily Volumes */
+/*****************************************************************************/
+proc sql;
+create table Quotes as 
+select
+	Prodcat, QuoteDate, Custid
+from Moe.Quotes 
+where QuoteDate >= &volSample_StartDate. and Interactive=1 and QuoteSts='COMPLETE'
+;
+quit;
+
+/* Calculate Daily Volumes */
+proc sql;
+create table Daily_Volumes as 
+select 
+	QuoteDate as Dtkey,
+	Prodcat,
+	Count(*) as rqst
+from Quotes
+group by QuoteDate, Prodcat
+;
+quit;
+
+* Create table of Daily Customer Volumes;
+proc sql;
+create table Daily_Cust_Volumes as
+select 
+	QuoteDate as Dtkey,
+	Prodcat,
+	Count(distinct custid) as Custs
+from Quotes
+group by QuoteDate, Prodcat
+;
+quit;	
+/*****************************************************************************/
+/* Create Stats by Weekday */
+/*****************************************************************************/
+/* Add Weekday */
+data Daily_Volumes;
+	set Daily_Volumes;
+	weekday=weekday(input(dtkey,anydtdte12.));
+run;
+
+proc sort data=Daily_Volumes;
+by Prodcat weekday ;
+run;
+
+/* Calc stats */
+proc univariate data=Daily_Volumes noprint;
+where dtkey <= &volSample_EndDate.;
+by Prodcat weekday;
+var rqst;
+output out=Daily_Volumes_univar_output 
+	QRANGE=QRANGE_Request
+	q1=min_Request
+	q3=max_Request;
+run;
+
+/* Create min max ranges */
+proc sql;
+create table Daily_Volumes_Ranges as
+	select 
+		UV.Prodcat, UV.weekday,
+		max_Request + &volmax_std. * QRANGE_Request as max_Request format=num11.0,
+		min_Request - &volmin_std. * QRANGE_Request as min_Request format=num11.0
+	from daily_volumes_univar_output UV 
+;
+quit;
+
+
+</body>
+</html>
