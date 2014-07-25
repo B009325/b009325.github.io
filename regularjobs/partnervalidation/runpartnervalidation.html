@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+
+options mlogic mprint;
+
+%include "E:\DI_Scratch\WPS Code\Live\Include\include.sas";
+
+%register(Dandy,PartnerValidation);
+
+%logwaitcomplete(BuildMoe);
+
+%Minclude(\Partner Validation\Extract Partner Information.sas);
+%Minclude(\Partner Validation\Partner Validation.sas);
+%Minclude(\Partner Validation\Total Request Validation.sas);
+%Minclude(\Partner Validation\GI.sas);
+%Minclude(\Partner Validation\Total Customer Validation.sas);
+%Minclude(\Partner Validation\Email.sas);
+
+%registerComplete;
+
+</body>
+</html>
