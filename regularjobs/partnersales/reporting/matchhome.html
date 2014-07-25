@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+************************************************************************************************************************
+                                               HOME MATCHING ONLY
+************************************************************************************************************************;
+%let partner=ALL;
+%let type=HOME;
+
+%let program_start=%sysfunc(time(),time8.0);
+%put &program_start.;
+
+* Find the files ready for matching;
+Title "&type. Files be Processed.";
+%let file_list=;
+proc sql;
+select distinct memname into :file_list separated by ' '
+from sashelp.vcolumn
+where index(memname,"&type.4M")>0 and libname='WORK';
+quit;
+
+%macro FinishHome;
+%if "&file_list" ne "" %then %do;
+* Merge all the files found into one;
+	data &partner._&type.;
+	set	&file_list.;
+	;run;
+	
+	%MergeHistoricalfiles;
+	%MatchingProcess;
+	%OutputMatchingResults;
+	%Validations;
+
+%end; %else %do;
+	data _null_;file print;title;
+	put "There are no Home files prepared to be matched.";
+	run;
+%end;
+%mend;
+
+%FinishHome;
+
+
+%LET PROGRAM_END=%sysfunc(time(),time8.0);
+data _null_;file print; title;
+put "Program Started at:	&Program_Start";
+put "Program Ended at:	&program_End";
+run;
+
+</body>
+</html>
