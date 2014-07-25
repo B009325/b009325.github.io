@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+%include "E:\DI_Scratch\WPS Code\Live\Include\include.sas";
+
+%register(Raiders,RaidersByIP);
+*----------------------------------------------------------------------------;
+* Takes sas date and converts to numeric YYYYMMDD ;
+%macro Sas2Dtkey(sasDate);
+	(input(put(&sasDate,yymmddn8.),8.))
+%mend;
+
+%let CustsMin=25;
+%let CompletionRatio=0.98;*Percentage Quotes Completed;
+
+%let today=today()-1;
+%let offset=7;
+
+%let syscc=0;
+
+data CheckDates;
+	SDate=%sas2dtkey(&today. - &offset.);
+	EDate=%sas2dtkey(&today.);
+
+	call symput('SDate',SDate);
+	call symput('EDate',EDate);
+run;
+
+Title "CheckDates";
+proc sql;select * from CheckDates;quit;
+*----------------------------------------------------------------------------;
+* Get Quotes;
+
+proc sql;
+CONNECT to ODBC as DW(DSN="DW_TC" );
+create table Quotes as select * from connection to DW
+(
+	select
+		'Car ' as ProdCat,
+		Custid,
+		QutnId as QuoteId,
+		OriginatingIpAddr as IP,
+		cqRqstkey as Rqstkey,
+		Rqstdtkey as QuoteDate,
+		rqststscd as QuoteSts
+	from dim.CarqutnRqst
+	where rqstdtkey>=&SDate. and rqstdtkey<=&EDate. and charindex('RESOL',upper(PromMktgCd))=0 and rqststscd='COMPLETE'
+	union
+	select
+		'Home' as ProdCat,
+		Custid,
+		QutnId as QuoteId,
+		OrigIpAddr as IP,
+		hqRqstkey as Rqstkey,
+		Rqstdtkey as QuoteDate,
+		rqststscd as QuoteSts
+	from dim.HomequtnRqst
+	where rqstdtkey>=&SDate. and rqstdtkey<=&EDate. and rqststscd='COMPLETE'
+	
+);
+DISCONNECT from DW;
+QUIT;
+
+
+proc sort data=Quotes;
+by CustId;
+run;
+
+data Quotes;
+merge Quotes (in=a) itch.rr_siteconfidence (in=b);
+by Custid;
+
+if a and not b;
+run;
+
+data Quotes;
+merge Quotes (in=a) itch.RR_Customers (in=b);
+by Custid;
+
+Raider=0;
+
+if a;
+if b then Raider=1;
+run;
+*----------------------------------------------------------------------------;
+* Get Clicks;
+
+proc sql;
+CONNECT to ODBC as DW(DSN="DW_TC" );
+create table Clicks as select * from connection to DW
+(
+	select
+		'Car ' as ProdCat,
+		cqRqstKey as RqstKey
+	from fact.CarClick
+	where ClickDtKey>=&SDate. and ClickDtKey<=&EDate. and ClickTypCd <> 'COMPARE'
+	union
+	select
+		'Home' as ProdCat,
+		hqRqstKey as RqstKey
+	from fact.HomeClick
+	where ClickDtKey>=&SDate. and ClickDtKey<=&EDate. and ClickTypCd <> 'COMPARE'
+	
+);
+DISCONNECT from DW;
+QUIT;
+
+*----------------------------------------------------------------------------;
+* Get Clicks;
+
+proc sort data=Quotes;
+by Prodcat Rqstkey;
+run;
+
+proc sort data=Clicks;
+by Prodcat Rqstkey;
+run;
+
+data Quotes;
+merge Quotes (in=a) Clicks (in=b);
+by Prodcat Rqstkey;
+
+if a;
+Click=1;
+if not b then Click=0;
+run;
+*----------------------------------------------------------------------------;
+* Create Summary;
+
+proc sql;
+create table Summary as 
+select 
+	ProdCat, QuoteDate, IP,
+	count(*) as Quotes ,
+	count(distinct custid) as Customers,
+	max(quoteid) as MaxQuote
+from Quotes
+group by ProdCat, QuoteDate, IP
+order by ProdCat, QuoteDate, IP
+;
+
+create table Complete as
+select 
+	ProdCat, QuoteDate, IP,
+	count(distinct custid) as Complete
+from Quotes
+where QuoteSts='COMPLETE'
+group by ProdCat, QuoteDate, IP
+order by ProdCat, QuoteDate, IP
+;
+
+create table Raiders as
+select 
+	ProdCat, QuoteDate, IP,
+	count(distinct custid) as Raiders
+from Quotes
+where Raider=1
+group by ProdCat, QuoteDate, IP
+order by ProdCat, QuoteDate, IP
+;
+
+create table Clicks as
+select 
+	ProdCat, QuoteDate, IP,
+	count(distinct custid) as Clicks
+from Quotes
+where Click=1
+group by ProdCat, QuoteDate, IP
+order by ProdCat, QuoteDate, IP
+;
+quit;
+
+data Summary;
+merge Summary Complete Clicks Raiders ;
+by ProdCat QuoteDate IP;
+
+format Completion  Raids Percent8.2;
+
+Completion=Complete/Customers;
+Raids=Raiders/Complete;
+run;
+
+proc sort data=Summary;
+by ProdCat descending Customers;
+run;
+
+proc sql;
+create table RaidersIp as 
+select * from Summary
+where Customers>=&CustsMin. 
+	and Completion>&CompletionRatio.
+	and IP ne ''
+	and Clicks eq . 
+;
+
+create table IPCustomers as
+select distinct Custid 
+from Quotes Q
+join RaidersIp R on r.IP=q.IP and r.QuoteDate=q.QuoteDate
+;
+quit;
+
+proc sort data=Summary;
+by descending Customers;
+run;
+
+*---------------------------------------------------------------------------------------;
+* Update itch.RR_Customers with teh new RateRaiders;
+
+Title "IP Raiders";
+proc sql;select * from RaidersIp order by prodcat, QuoteDate desc;quit;
+
+data RR_Customers;
+set itch.RR_Customers IPCustomers;
+run;
+
+proc sort data=RR_Customers nodup;
+by CustId;
+run;
+
+*---------------------------------------------------------------------------------------;
+
+%macro UpdateItch;
+
+%if &syserr. or &syscc. > 4 %then %do;
+	data _null_;file print;title "UPDATE FAILURE";
+	put "Your manky program has failed. Your worthless results have been discarded";
+	run;
+	%put "Your manky program has failed. Your worthless results have been discarded";
+%end;%else %do;
+	data _null_;file print;title "Update Going Ahead";
+	put "Going...";
+	run;
+	
+	proc datasets lib=itch nolist nodetails;
+	delete RR_Customers;
+	run;
+
+	data itch.RR_Customers;
+	set RR_Customers;
+	run;
+%end;
+%mend;
+
+%UpdateItch;
+
+%registerComplete;
+
+</body>
+</html>
