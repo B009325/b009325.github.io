@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+
+/*
+	Save teh Control sheet as a CSV and then copy it to the same directory as all the sales files to be imported.
+	Change prodid to numeric 0decimals
+
+	DOES NOT AND DO NOT EXPORT TO ANY PRODUCTION FILES 
+
+	EXPORT IS DONE ELSEWHERE
+*/
+
+%macro ImportControlSheet;
+%let inpfile = &inplib.\Tesco Compare Control Sheet Exported.csv;
+/*%let inpfile = E:\DI_Scratch\sales data\&year.\&month.\Input\Tesco Compare Control Sheet Exported.csv;*/
+
+/*----------------------------------------------------------------------------------------------------------------*/
+/* Import Data */
+/*----------------------------------------------------------------------------------------------------------------*/
+data ControlSheetImport;
+  infile "&inpfile" delimiter = ',' MISSOVER DSD TERMSTR=CRLF lrecl=32767 FIRSTOBS=2;
+
+Informat   cYear $100. cMonth $100. cProdId $60.  PartnerGroup $60.  InvoicingGroup $60. PRGroup $60.
+	  InvoicingBrand $60. ProdCat $10. MIdatareceived DDMMYY10.0 cGross $100. 
+	 cCancelled $100. cNetSales $100. EbenchmarkersOverlap $100. DataChecked $100. InvBatch $100. 
+	 PONo $100. Commpr $100. InvoiceNet $100. InvoiceVat $100. InvoiceAmount $100. 
+	 OrderMgtRef $100. InvoiceNo $100. InvoiceDate $100. InvoiceProduced $100. NOTES $100. 
+	 InvoiceDistributionDetails $100. RMContactDetails $100. PriorMonthConversion $100. InvNetSales $100. CommissionAccl $100. 
+	;
+Format   cYear $100. cMonth $100. cProdId $100.  PartnerGroup $60.  InvoicingGroup $60. PRGroup $60.
+	  InvoicingBrand $60. ProdCat $10. MIdatareceived DDMMYYS10.0 cGross $100. 
+	 cCancelled $100. cNetSales $100. EbenchmarkersOverlap $100. DataChecked $100. InvBatch $100. 
+	 PONo $100. Commpr $100. InvoiceNet $100. InvoiceVat $100. InvoiceAmount $100. 
+	 OrderMgtRef $100. InvoiceNo $100. InvoiceDate $100. InvoiceProduced $100. NOTES $100. 
+	 InvoiceDistributionDetails $100. RMContactDetails $100. PriorMonthConversion $100. InvNetSales $100. CommissionAccl $100. 
+	;
+
+* Input Field Listings;
+Input   cYear $ cMonth $ cProdId $ PartnerGroup $  InvoicingGroup $ PRGroup $
+	  InvoicingBrand $ ProdCat $ MIdatareceived $ cGross $ 
+	 cCancelled $ cNetSales $ EbenchmarkersOverlap $ DataChecked $ InvBatch $ 
+	 PONo $ Commpr $ InvoiceNet $ InvoiceVat $ InvoiceAmount $ 
+	 OrderMgtRef $ InvoiceNo $ InvoiceDate $ InvoiceProduced $ NOTES $ 
+	 InvoiceDistributionDetails $ RMContactDetails $ PriorMonthConversion $ InvNetSales $ CommissionAccl $ 
+	;
+
+if cYear='"' then delete;
+if cYear=' ' then delete;
+run;
+
+/*----------------------------------------------------------------------------------------------------------------*/
+/* Create KRUST CONTROL SHEET */
+/*----------------------------------------------------------------------------------------------------------------*/
+data KrustControlSheet;
+format ProdCat $10. ProdId 11. PartnerGroup InvoicingBrand $60. Year 4. Month 2. EbenchMarkers 1. Gross Cancelled Net 11. InvAmount 11.2 CPA 8.2 MIdatareceived yymmddd10.;
+set ControlSheetImport;
+
+	ProdId=1*cProdId;
+	Year=1*cYear;
+	Month=1*cMonth;
+	EbenchMarkers=coalesce(EbenchmarkersOverlap,0);
+	Gross=coalesce(1*cGross,0);
+	Cancelled=coalesce(1*cCancelled,0);
+	Net=coalesce(1*cNetSales,0);
+	if index(Commpr,"%")>0 then CPA=0; else CPA=coalesce(1*Commpr,0);
+	InvAmount=sum(1*compress(InvoiceNet,'$£,-œ'),0);
+	
+	keep ProdCat ProdId partnergroup InvoicingBrand  Year Month ProdCat EbenchMarkers Gross Cancelled Net InvAmount CPA MIdatareceived;
+
+	if Year <> .;
+run;
+/*----------------------------------------------------------------------------------------------------------------*/
+/* Report over imported Data */
+/*----------------------------------------------------------------------------------------------------------------*/
+proc sql ;
+title "Imported Sales for &year. - &month.";
+
+select 
+	ProdCat,
+	sum(Net) as NetSales
+from KrustControlSheet
+where year=&year. and month=&month.
+group by ProdCat
+;
+
+quit;
+
+%mend;
+
+
+
+</body>
+</html>
