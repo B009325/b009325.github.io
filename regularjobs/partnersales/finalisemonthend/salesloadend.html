@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/* 
+	update Krust.Sales and export to Itchy.
+*/
+
+%let testing=0;
+
+
+%macro OutputSalesLoad;
+%let UpDateFile=Krust.Sales;
+
+%FileLoadSummary;
+
+* IF Testing;
+%if &Testing. %then %do;
+	%let UpDateFile=apu.Sales_f;
+
+	data &UpDateFile.;
+		set Krust.Sales;
+	run;
+%end;
+
+* Find Most recently used values;
+proc sql noprint;
+	select max(salesid) into :SalesId from &UpDateFile.;
+	select max(bau_load_id) into :bau_load_id from &UpDateFile.;
+quit;
+
+title "Id in play";
+data _totemp;x=1;run;
+proc sql;
+select
+	&SalesId. as Max_Live_SalesId label="Max Live SalesId",
+	&bau_load_id. as Max_Live_LoadId label="Max Live Load Id",
+	(select max(salesid) from apu.sales_load_sales) as SalesId label="Max Load Sales Id",
+	(select max(bau_load_id) from apu.sales_load_sales) as LoadId label="Max Load Load Id"
+from _totemp;
+quit;
+
+proc sql noprint;
+	select count(*) into :Rcds from apu.Sales_Load_Sales where BAU_load_id=.;
+	select count(*) into :ToRcds from itch.bau_sales_stg;
+quit;
+
+* If records already found in staging table - then error quit;
+%if &ToRcds. %then %do;
+	title "STAGING ERROR";
+	data _null_;file print;
+	put "Staging file already has data in it - &ToRcds. records found.";
+	run;
+
+	%goto exit;
+%end;
+
+* If Nothing found to Export;
+%if &Rcds.=0 %then %do;
+	title "STAGING WARNING";
+	data _null_;file print;
+	put "No records found to add to staging area.";
+	run;
+
+	%goto exit;
+%end;
+
+* Split out Historical Cancellations;
+data Sales HCancels;
+set apu.Sales_Load_Sales;
+	if BAU_load_id=.; * Has Not already been exported;
+	if SaleStatusId=3 then output HCancels; else output Sales;
+run;
+
+data Sales;
+set  Sales;
+	SalesId=_n_ + &SalesId.;
+	BAU_Load_Id=1 + &BAU_Load_Id.;
+	ModifiedDate=%sas2dtkey(today());
+run;
+
+proc sql noprint;
+	select name into :fields separated by "," from sashelp.vcolumn 
+	where upcase(libname)=upcase('krust') and upcase(memname)=upcase('Sales');
+quit;
+
+* Backup Output to APU before update;
+data _toTemp;
+	BackupFile=compress("&UpDateFile._&BAU_Load_Id.");
+	BackupFile=tranwrd(BackupFile, "Krust","Apu");
+	call symput('Backup',BackupFile);
+run;
+title "Backing up to";
+proc sql;select * from _totemp;quit;
+
+data &Backup.;
+set &UpDateFile.;
+run;
+
+/*******************************************************************/
+* Error Check;
+%if &syserr. %then %do;
+	title "STAGING STOPPED DUE TO ERROR";
+	data _null_;file print;
+	put "Processing abandoned.";
+	run;
+
+	%goto exit;
+%end;
+/*******************************************************************/
+/* UPDATE KRUSTY SALES */
+/* Update Sales to Output file */
+/*******************************************************************/
+proc sql;
+	insert into &UpDateFile. select &fields. from Sales where SaleStatusId in (1,2);
+
+	update &UpDateFile.
+	set HistoricalYear=&Year. , HistoricalMonth=&Month. , 
+		SaleStatusId=3, SaleStatus="HISTORIC CANCELATION", 
+		ModifiedDate=%sas2dtkey(today()), BAU_Load_Id=1 + &BAU_Load_Id.
+	where Salesid in (select SalesId from HCancels where SaleStatusId=3);
+quit;
+
+/* Extract to Itch */
+data Extract;
+set &UpDateFile.;
+	if BAU_Load_Id=1 + &BAU_Load_Id.;
+run;
+
+/* Add to staging file */
+proc append base=itch.BAU_Sales_stg  data=Extract force; 
+run;
+
+/* Update krust.Sales_load_Sales BAU_load_id */
+data apu.Sales_Load_Sales;
+set  apu.Sales_Load_Sales;
+	if BAU_load_id=. then BAU_Load_Id=1 + &BAU_Load_Id.;
+run;
+
+%FileLoadSummary;
+
+%exit:
+%mend;
+
+%OutputSalesLoad;
+
+/* CLEAR STAGING TABLE
+proc sql;
+delete * from itch.bau_sales_stg;
+quit;
+*/
+
+
+/* RESET BAU_LOAD_IDS SO IT CAN BE REIMPORTED 
+proc sql;
+	title "Max apu.SalesLoadSales loadid";
+	select max(bau_load_id) into :Loaded from apu.sales_load_sales;
+
+	select bau_load_id, count(*)  from apu.sales_load_sales group by bau_load_id;
+quit;
+
+proc sql;
+	update apu.sales_load_sales set bau_load_id = . where bau_load_id =&Loaded. ;
+	select count(*) as Updated from apu.sales_load_sales where bau_load_id = .;
+	select bau_load_id, count(*)  from apu.sales_load_sales group by bau_load_id;
+quit;
+
+proc sql;select distinct invoicingprodid from itch.bau_sales_stg;quit;
+*/
+
+/*
+%SummariseSalesfile(apu.sales_load_sales);
+%SummariseSalesfile(itch.BAU_Sales_stg);
+*/
+
+</body>
+</html>
