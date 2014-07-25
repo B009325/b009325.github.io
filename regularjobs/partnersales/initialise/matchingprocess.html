@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+************************************************************************************************************************
+                                                 MATCHING STARTS
+************************************************************************************************************************;
+* for testing only;
+/*data &Partner._&Type.;*/
+/*set &Partner._&Type.4m;*/
+/*run;*/
+************************************************************************************************************************;
+%macro MatchingProcess;
+/*%if &Syserr > 0 %then %goto exit;*/
+
+%LET PROGRAM_START=%sysfunc(time(),time8.0);
+%put &program_start.;
+/******************************************************************************/
+* Extract Responses for the Full set of Products to be matched;
+proc sql; 
+create table AllProds as 
+select distinct 
+	prodid as PartnerId, MasterProdid
+from krust.partners
+where PartnerGroup in (select distinct PartnerGroup from &Partner._&Type.)
+	and upcase(ProdCat)="&type." 
+order by ProdId;
+quit;
+
+* Extract Responses : 1min;
+proc sql; 
+create table Responses as 
+select t.* from apu.Sales_Load_&type.Responses t
+join AllProds a on t.prodid=a.PartnerId
+;
+quit;
+
+/* Check not rebilding extracted sales */
+proc sql noprint;
+select count(*) into :Processed from apu.sales_load_sales a
+join Allprods b on b.partnerid=a.invoicingprodid and bau_load_id>.
+;
+quit;
+
+%if &Processed. %then %do;
+data _null_;file print;
+title "ERROR - REBUILDING EXTRACTED DATA";
+put "Re-matching data already sent to krusty and BAU.Sales_IMADBA";
+run;
+%goto exit;
+%end;
+
+/******************************************************************************/
+* Quote Reference Matching;
+/******************************************************************************/
+* Build distinct list of all Quote references to match;
+proc sql;
+create table temp_Partner_QR as
+	select distinct QuoteRefA  as QRef 
+	from &partner._&type.
+	where QuoteRefA not in ('0','')
+;
+insert into temp_Partner_QR 
+	select distinct QuoteRefB 
+	from &partner._&type. 
+	where QuoteRefB not in ('0','')
+;
+quit;
+
+proc sort data=temp_Partner_QR nodups;
+by QRef;
+run;
+
+* Match QuoteRefs to Responses;
+proc sql;
+create table QuoteRefs as 
+select prodid,custid,QutnId,RqstDtKey,
+		/*prodkey,Annprem,MonthlyPrem,TotMonthlyPrem,DepositPrem,FstInstmtPrem,NumOfInstmts,*/
+		&type.QR,
+		&type.QR as ResponseQuoteRef, Rank, Duration 
+from Responses
+join temp_Partner_QR on &type.QR = QRef
+;
+quit;
+/*----------------------------------------------------------------------------*/
+* Build Output of QuoteRef Matches;
+/*----------------------------------------------------------------------------*/
+proc sql;
+create table QuoteRef_Matches as 
+select
+	B.prodid as MatchedProdid,
+	A.*,
+	B.custid, B.QutnId,
+	B.RqstDtKey,
+	/* B.prodkey, B.Annprem, B.MonthlyPrem, B.TotMonthlyPrem, B.DepositPrem, B.FstInstmtPrem, B.NumOfInstmts, */
+	B.&type.QR as ResponseQuoteRef, 	B.Rank, 	B.Duration 
+from &Partner._&Type. as A  
+join QuoteRefs as B on (A.QuoteRefA = B.&type.QR or A.QuoteRefB = B.&type.QR)
+order by A.UnKey
+/*,B.RqstdtKey,B.custid,B.qutnid*/
+;
+quit;
+
+* Extract Those that have not been QuoteRef matched;
+proc sort data=&Partner._&Type.;
+by unkey;
+run;
+
+data &Partner._&Type.B;
+merge &Partner._&Type. (in=a) QuoteRef_Matches(in=b keep=unkey);
+by unkey;
+if a and not b;
+run;
+
+Title "Quoteref Matching Results";
+data _toTemp;x=1;run;
+proc sql; 
+	select 
+		(select count(distinct unkey) as Freq from QuoteRef_Matches) as QuoteRef_Matched,
+		(select count(distinct unkey) as Freq from &Partner._&Type.B) as UnMatched
+	from _toTemp
+; 
+quit;
+
+%let QuoteRefUnmatched=0;
+proc sql noprint; select count(*) into :QuoteRefUnmatched from &Partner._&Type.B; quit;
+/*----------------------------------------------------------------------------*/
+* Tidy up files;
+%if not &Testing %then %do;
+	proc datasets lib=work nolist nodetails;
+	delete temp_partner_qr quoterefs;
+	run;
+%end;
+
+%if &Syserr > 0 %then %goto exit;
+/******************************************************************************/
+* Matching Remainder of Sales - Match to a customer then extract responses ;
+/******************************************************************************/
+* Manipulate postcode no idea why;
+
+data loop1(drop=ascii_string not_ascii pcode x test_var);   
+     length ascii_string $ 96;                         
+set &partner._&type.B;
+
+  orig_pcode=pcode; 
+    do x = 32 to 127;ascii_string=trim(left(ascii_string))||byte(x);end;                                                   
+    test_var=pcode;                       
+    not_ascii=verify(test_var,ascii_string); 
+if not_ascii > 0 then new_pc = substr(pcode,1,not_ascii-1)||substr(pcode,not_ascii+1);
+else new_pc = pcode;
+run; 
+
+data loop2(drop=ascii_string not_ascii x new_pc test_var);   
+     length ascii_string $ 96;                         
+set loop1;
+    do x = 32 to 127;ascii_string=trim(left(ascii_string))||byte(x);end;                                                   
+    test_var=new_pc;                       
+    not_ascii=verify(test_var,ascii_string); 
+if not_ascii > 0 then new_pc2 = substr(new_pc,1,not_ascii-1)||substr(new_pc,not_ascii+1); 
+else new_pc2 = new_pc;
+run; 
+
+data loop3(drop=ascii_string not_ascii x test_var new_pc2);   
+     length ascii_string $ 96;                         
+set loop2;
+    do x = 32 to 127;ascii_string=trim(left(ascii_string))||byte(x);end;                                                   
+    test_var=new_pc2;                       
+    not_ascii=verify(test_var,ascii_string); 
+if not_ascii > 0 then pcode = substr(new_pc2,1,not_ascii-1)||substr(new_pc2,not_ascii+1);
+else pcode = new_pc2;
+run; 
+
+data &partner._&type._keyed;
+set loop3;
+length key1 key2 key3 key4 key5 key6 $200.;
+	key1=upcase(compress(compress(Fname,'','ak')||compress(Sname,'','ak')||Pcode));
+	key2=upcase(compress(compress(Fname,'','ak')||compress(upcase(Sname),'','ak')||DOB));
+	key3=upcase(compress(compress(Fname,'','ak')||pcode||DOB));
+	key4=upcase(compress(compress(Sname,'','ak')||pcode||DOB));
+	key5=upcase(compress(compress(substr(left(Fname),1,1),'','ak')||compress(Sname,'','ak')||Pcode||DOB));
+	key6=upcase(compress(email));
+run;
+
+%if &Syserr > 0 %then %goto exit;
+
+* Matching on Name and PostCode;
+* Budget 1min47;
+proc sql;
+create table QuoteKeys as 
+select custid, 
+	key1,key2,key3,key4,key5
+from apu.Sales_Load_&type.Customer 
+where  key1 in (select distinct key1 from &partner._&type._keyed)
+	OR key2 in (select distinct key2 from &partner._&type._keyed)
+	OR key3 in (select distinct key3 from &partner._&type._keyed)
+	OR key4 in (select distinct key4 from &partner._&type._keyed)
+	OR key5 in (select distinct key5 from &partner._&type._keyed)
+;
+quit;
+
+* Key matching
+* Budget 42s;
+proc sql;
+create table Matched_ByKey 
+as select distinct
+   A.*,
+   B.custid,'' as Emailaddr
+from &partner._&type._keyed as A
+left join QuoteKeys as B
+	on A.key1=B.key1 OR A.key2=B.key2 OR A.key3=B.key3 OR A.key4=B.key4 OR A.key5=B.key5
+order by A.unkey,B.custid,Emailaddr;
+quit;
+
+* Email Address matching;
+proc sql;
+create table Matched_ByEmail
+as select 
+   A.*,
+   C.custid,
+   C.EmailAddr
+from &partner._&type._keyed as A
+join apu.Sales_Load_CustEmail as C on %strcompnb(A.key6,C.EmailAddr)
+order by A.unkey,C.custid,C.Emailaddr;
+quit;
+
+%if &Syserr > 0 %then %goto exit;
+* Name with PostCode and or DOB matching;
+proc sql;
+create table Matched_ByName
+as select distinct
+   A.*,B.custid,B.Fname as FileFname,B.sname as FileSname,B.pcode as FilePcode,catx('',B.dobdtkey) as FileDOB,'' as Emailaddr
+from &partner._&type._keyed as A
+join apu.Sales_Load_&type.Customer  as B
+	on %strcompnb(b.sname, a.sname)
+    and (upcase(compress(B.pcode))=upcase(compress(A.pcode)) OR catx('',B.dobdtkey)=A.dob)
+order by A.unkey,B.custid,Emailaddr;
+quit;
+
+*Check above matches against Forename;
+data Matched_ByName;
+set Matched_ByName;
+by unkey custid;
+if Fname='' then do;
+	if upcase(compress(pcode)) ne upcase(compress(FilePcode)) OR Dob ne FileDob then delete;
+end;
+else if upcase(substr(compress(FileFname),1,1)) ne upcase(substr(compress(fname),1,1)) then delete;
+
+drop FileFname FileSname FilePcode FileDob; 
+run;
+
+data Matched_By;
+set Matched_ByEmail Matched_ByKey Matched_ByName;
+by unkey custid emailaddr;
+if last.custid; *Only get one record per customer Id and Unique Key;
+run;
+
+* Extract Responses for Custids;
+
+* Budget 5min40s;
+%if &Syserr > 0 %then %goto exit;
+proc sql;
+create table Customer_Matches as 
+select
+	A.custid, b.qutnid,
+     A.*,
+	 B.prodid as MatchedProdid,
+	 B.RqstDtKey,/*
+	 B.prodkey,
+	 B.Annprem,
+	 B.MonthlyPrem,
+	 B.TotMonthlyPrem,
+	 B.DepositPrem,
+	 B.FstInstmtPrem,
+	 B.NumOfInstmts,*/
+	 B.&type.QR as ResponseQuoteRef, 
+	 B.Rank, 
+	 B.Duration 
+ from Matched_By a
+ left join Responses as b on A.custid = B.CustId
+/* order by A.UnKey,B.RqstdtKey,A.EmailAddr,A.custid,B.qutnid*/
+;
+quit;
+
+/******************************************************************************/
+* Merge Customer Matches and Quote Ref Matches then strip to one Quote ;
+/******************************************************************************/
+
+data Matched_Merged;
+set QuoteRef_Matches Customer_Matches;
+run;
+
+/* Timings: 40secs Home */
+proc sql; 
+	create table Matched as 
+ 	select
+		Partner,
+		MatchedProdid,
+/*		upcase(B.prodname) as MatchedProdName,*/
+		B.prodname as MatchedProdName,
+		b.PartnerGroup as MatchedPartnerGroup,
+		a.Prodname, a.PartnerGroup,  
+		a.ProdId,
+		c.masterprodid,
+		b.masterprodid as SubMasterProdid,
+     	A.*
+	from Matched_Merged a
+	left join krust.Partners b on A.MatchedProdid=B.ProdId and A.MatchedProdid > 0 and current
+	left join AllProds c on a.ProdId=c.partnerid
+	;
+/*	order by A.UnKey, A.RqstdtKey, A.EmailAddr, A.custid, A.qutnid;*/
+quit;
+
+* Add Match rating;
+data Matched;
+format Match 3.;
+set Matched;
+
+   if custid lt 0 then Match=0;
+   else if custid gt 0 and Matchedprodid le 0 and qutnid le 0 then Match=1;
+
+   else if custid gt 0 and MatchedProdid gt 0 and qutnid gt 0 then do;
+		if ProdId=MatchedProdid then Match=6;
+		else if MatchedProdid=MasterProdid then Match=5;
+		else if SubMasterProdid=Prodid then Match=4;
+		else if %strcompnb(MatchedPartnerGroup,PartnerGroup) then Match=3;
+		else Match=2;
+   end;
+   
+/*keep UnKey RqstDtKey qutnid partner email emailaddr custid PD QD product custid qutnid Match MatchedPartner;*/
+run; 
+
+proc sort data=Matched;
+by  UnKey Match RqstdtKey EmailAddr custid qutnid;
+run;
+
+* Keep Best Match;
+data Matched_Quotes;
+set Matched;
+by  UnKey Match RqstdtKey EmailAddr custid qutnid;
+
+if last.unkey;
+
+	LoadDate=today();
+	format LoadDate date9.;
+
+	format Outcome $20.;
+	if Match=3 then Outcome='CrossPartnerMatch';
+	else if Match=4 then Outcome='SubMonsterMash';
+	else if Match=5 then Outcome='MonsterMash';
+	else if Match=6 then Outcome='Match';
+	else Outcome='Unmatch';
+run;
+
+proc freq data=matched_quotes;
+tables partner*status*OUTCOME / list missing;
+title 'Matching Outcome';
+run;
+
+/*******************************************************************/
+/* NEW WAVE IN TOWN AND ITS KRUSTY */
+/*******************************************************************/
+proc sql;
+create table KrustySales as 
+select
+	ProdName as InvoicingBrand, 
+/*	case when MatchedProdid>. then MatchedProdName else ProdName end as ProdName,*/
+	case when match >=3 then MatchedProdName else ProdName end as ProdName,
+	. as SalesId,
+	propcase(a.ProdCat) as ProdCat length=10,
+	case when match >=3 then a.Custid else . end as CustId,
+	case when match >=3 then a.Qutnid else . end as QuoteId,
+	case when Status='Live' then 'SALE'
+		when Status='Cancelled' then 'CANCELLATION'  else 'ERROR' end as SaleStatus length=20,
+	case when Status='Live' then 1 
+		when Status='Cancelled' then 2 else 0 end as SaleStatusId,
+	Prodid as InvoicingProdId, 
+/*	case when MatchedProdid>. then MatchedProdid else ProdId end as ProdId,*/
+	case when match >=3 then MatchedProdid else ProdId end as ProdId,
+	%sas2dtkey(PD) as SaleDate,
+	case when SD>. then %sas2dtkey(SD) else %sas2dtkey(&ThisMonthEnd.) end as StartDate,
+	%sas2dtkey(CD) as CancelledDate,
+	a.Email, QuoteRefA as QuoteRef, PolicyRef,
+	Premium as AnnualPremium,
+	Year as SaleYear, Month as SaleMonth,
+	SalesChannel,
+	case when PD=. or PD ge intnx('month',"01&monthname.&year."d,1,'beginning') then 'Y' else 'N' end as MissingSaleDate,
+	. as BAU_Load_ID,
+	. as HistoricalYear,
+	. as HistoricalMonth,
+	propcase(FName) as Forename,
+	propcase(SName) as Surname,
+/*	%sas2dtkey(QD) as QuoteDate,*/
+	case when b.quotedate>. then b.QuoteDate /* use quotes quotedate */
+	else %sas2dtkey(mdy(&month.,1,&year.)) end as QuoteDate,
+	b.Mobile,
+	b.GI,
+	b.CC,
+	PCode as PostCode,
+	ResponseQuoteRef,
+	Rank, Duration,
+	unkey
+ from Matched_Quotes a
+ left outer join krust.quotes b on a.custid=b.custid and a.Qutnid=b.quoteid and propcase(a.ProdCat)=b.prodcat
+;
+quit;
+************************************************************************************************************************
+                                                 MATCHING ENDS
+************************************************************************************************************************;
+title "&Partner. &Type. MATCHING OUTCOME. &PROGRAM_START.";
+proc sql;
+create table Matches as select distinct ProdCat, partner from Matched_Quotes;
+
+select a.*,
+	(select count(*) from Matched_Quotes b where outcome ='Match' 
+			and a.partner=b.partner and a.ProdCat=b.ProdCat) as Matched,
+	(select count(*) from Matched_Quotes b where outcome ='MonsterMash' 
+			and a.partner=b.partner and a.ProdCat=b.ProdCat) as MasterMatched,
+	(select count(*) from Matched_Quotes b where outcome ='SubMonsterMash' 
+			and a.partner=b.partner and a.ProdCat=b.ProdCat) as SubMasterMatched,
+	(select count(*) from Matched_Quotes b where outcome ='CrossPartnerMatch' 
+			and a.partner=b.partner and a.ProdCat=b.ProdCat) as CrossPartnerMatch,
+	(select count(*) from Matched_Quotes b where outcome ='Unmatch' 
+			and a.partner=b.partner and a.ProdCat=b.ProdCat ) as Unmatch,
+	(select count(*) from Matched_Quotes b where b.status='Cancelled' 
+			and a.partner=b.partner and a.ProdCat=b.ProdCat) as Cancelled,
+%if &HistoricalCount %then %do;
+	(select count(*) from &Partner._&Type.4HM b where a.partner=b.partner and a.ProdCat=b.ProdCat ) as HCancelled
+%end; %else %do;
+	0 as HCancelled
+%end;
+	
+from matches a
+order by ProdCat, partner;
+
+quit;
+
+title 'Partner Frequency';
+proc freq data=Matched_Quotes;
+tables ProdCat*partner*MatchedProdName*status*outcome/ list missing;
+run;
+
+proc sql noprint;
+select count(*) into :um from Matched_Quotes b where outcome ='Unmatch' ;
+quit;
+
+%if &um %then %do;
+proc sql;
+Title "UnMatched Records";
+select * from Matched_Quotes b where outcome ='Unmatch' ;
+drop table matches;
+quit;
+%end;
+
+
+%if not &testing %then %do;
+proc datasets lib=work nolist nodetails;
+delete responses loop1 loop2 loop3 all_car_keyed quotekeys Matched_ByKey Matched_ByEmail Matched_ByName Matched_All3 Matched_All4 Matched_All5;
+run;
+%end;
+
+************************************************************************************************************************
+                              RUN THE CODE: PART 2c - Standard Matching - Save output.sas
+************************************************************************************************************************;
+%exit: 
+%mend;
+
+
+
+
+</body>
+</html>
