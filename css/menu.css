@@ -68,7 +68,7 @@ ol, ul {
 
 /* HEADER > MENU */
 #main-menu {
-	float: left;
+	float: right;
 	font-size: 0;
 	margin: 10px 0;
 }
