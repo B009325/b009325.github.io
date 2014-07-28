@@ -17,16 +17,16 @@
 	cursor: pointer;
 }
 .tabs input#tab-2{
-	left: 90px;
+	left: 130px;
 }
 .tabs input#tab-3{
-	left: 180px;
+	left: 260px;
 }
 .tabs input#tab-4{
-	left: 270px;
+	left: 390px;
 }
 .tabs input#tab-5{
-	left: 360px;
+	left: 510px;
 }
 
 .tabs label {
