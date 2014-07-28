@@ -25,6 +25,9 @@
 .tabs input#tab-4{
 	left: 540px;
 }
+.tabs input#tab-5{
+	left: 720px;
+}
 
 .tabs label {
 	background: #5ba4a4;
@@ -83,6 +86,9 @@
 .tab-label-4 {
     z-index: 1;
 }
+.tab-label-4 {
+    z-index: 0;
+}
 
 .tabs input:checked + label {
     background: #fff;
@@ -123,7 +129,7 @@
     transition: all linear 0.3s;
 }
 
-.content-1, .content-3 {
+.content-1, .content-3, .content-5 {
 	-webkit-transform: translateX(-250px);
 	-moz-transform: translateX(-250px);
 	-o-transform: translateX(-250px);
@@ -146,7 +152,8 @@
 .tabs input.tab-selector-1:checked ~ .content .content-1,
 .tabs input.tab-selector-2:checked ~ .content .content-2,
 .tabs input.tab-selector-3:checked ~ .content .content-3,
-.tabs input.tab-selector-4:checked ~ .content .content-4 {
+.tabs input.tab-selector-4:checked ~ .content .content-4,
+.tabs input.tab-selector-5:checked ~ .content .content-5{
     -webkit-transform: translateX(0px);
 	-moz-transform: translateX(0px);
 	-o-transform: translateX(0px);
