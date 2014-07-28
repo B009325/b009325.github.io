@@ -168,6 +168,7 @@
 }
 .content-6-col2 {
 	display:inline;
+	float:right;
 }
 
 .content-1, .content-3, .content-5, .content-7, .content-9 {
