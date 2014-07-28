@@ -159,18 +159,6 @@
     transition: all linear 0.3s;
 }
 
-.content-6-wrap  {
-	padding: 40px 40px;
-	disply:inline;
-}
-.content-6-col1 {
-	display:inline;
-}
-.content-6-col2 {
-	display:inline;
-	float:right;
-}
-
 .content-1, .content-3, .content-5, .content-7, .content-9 {
 	-webkit-transform: translateX(-250px);
 	-moz-transform: translateX(-250px);
@@ -196,7 +184,7 @@
 .tabs input.tab-selector-3:checked ~ .content .content-3,
 .tabs input.tab-selector-4:checked ~ .content .content-4,
 .tabs input.tab-selector-5:checked ~ .content .content-5,
-.tabs input.tab-selector-6:checked ~ .content .content-6 .content-6-wrap .content-6-col1 .content-6-col2,
+.tabs input.tab-selector-6:checked ~ .content .content-6,
 .tabs input.tab-selector-7:checked ~ .content .content-7,
 .tabs input.tab-selector-8:checked ~ .content .content-8,
 .tabs input.tab-selector-9:checked ~ .content .content-9{
