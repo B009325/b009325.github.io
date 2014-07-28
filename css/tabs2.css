@@ -7,7 +7,7 @@
 .tabs input {
 	position: absolute;
 	z-index: 1000;
-	width: 130px;
+	width: 140px;
 	height: 40px;
 	left: 0px;
 	top: 0px;
@@ -17,28 +17,28 @@
 	cursor: pointer;
 }
 .tabs input#tab-2{
-	left: 130px;
+	left: 140px;
 }
 .tabs input#tab-3{
-	left: 260px;
+	left: 280px;
 }
 .tabs input#tab-4{
-	left: 390px;
+	left: 420px;
 }
 .tabs input#tab-5{
-	left: 520px;
+	left: 560px;
 }
 .tabs input#tab-6{
-	left: 650px;
+	left: 680px;
 }
 .tabs input#tab-7{
-	left: 780px;
+	left: 800px;
 }
 .tabs input#tab-8{
-	left: 910px;
+	left: 940px;
 }
 .tabs input#tab-9{
-	left: 1040px;
+	left: 1080px;
 }
 
 
@@ -57,7 +57,7 @@
 	padding: 0 10px;
     	float: left;
 	display: block;
-	width: 110px;
+	width: 120px;
 	color: #385c5b;
 	letter-spacing: 0px;
 	text-transform: uppercase;
