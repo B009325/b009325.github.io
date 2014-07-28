@@ -224,6 +224,7 @@
 	margin: 0;
 	color: #777;
 	padding-left: 15px;
+	padding-bottom:1px;
 	font-family: Cambria, Georgia, serif;
 	border-left: 8px solid rgba(63,148,148, 0.1);
 }
