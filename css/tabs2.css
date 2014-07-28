@@ -179,6 +179,11 @@
 	padding-left:15px;
 }
 
+.content-8 p {
+	padding-bottom:5px;
+}
+
+
 .tabs input.tab-selector-1:checked ~ .content .content-1,
 .tabs input.tab-selector-2:checked ~ .content .content-2,
 .tabs input.tab-selector-3:checked ~ .content .content-3,
