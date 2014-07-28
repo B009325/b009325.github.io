@@ -159,6 +159,17 @@
     transition: all linear 0.3s;
 }
 
+.content-6-wrap  {
+	padding: 40px 40px;
+	disply:inline;
+}
+.content-6-col1 {
+	display:inline;
+}
+.content-6-col2 {
+	display:inline;
+}
+
 .content-1, .content-3, .content-5, .content-7, .content-9 {
 	-webkit-transform: translateX(-250px);
 	-moz-transform: translateX(-250px);
