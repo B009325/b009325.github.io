@@ -159,7 +159,7 @@
     transition: all linear 0.3s;
 }
 
-.content-1, .content-3, .content-5 {
+.content-1, .content-3, .content-5, .content-7, .content-9 {
 	-webkit-transform: translateX(-250px);
 	-moz-transform: translateX(-250px);
 	-o-transform: translateX(-250px);
@@ -167,7 +167,7 @@
 	transform: translateX(-250px);
 }
 
-.content-2, .content-4 {
+.content-2, .content-4, .content-6, .content-8 {
     -webkit-transform: translateX(250px);
 	-moz-transform: translateX(250px);
 	-o-transform: translateX(250px);
