@@ -26,19 +26,19 @@
 	left: 390px;
 }
 .tabs input#tab-5{
-	left: 510px;
+	left: 520px;
 }
 .tabs input#tab-6{
-	left: 640px;
+	left: 650px;
 }
 .tabs input#tab-7{
-	left: 770px;
+	left: 780px;
 }
 .tabs input#tab-8{
-	left: 900px;
+	left: 910px;
 }
 .tabs input#tab-9{
-	left: 1030px;
+	left: 1040px;
 }
 
 
@@ -183,7 +183,11 @@
 .tabs input.tab-selector-2:checked ~ .content .content-2,
 .tabs input.tab-selector-3:checked ~ .content .content-3,
 .tabs input.tab-selector-4:checked ~ .content .content-4,
-.tabs input.tab-selector-5:checked ~ .content .content-5{
+.tabs input.tab-selector-5:checked ~ .content .content-5,
+.tabs input.tab-selector-6:checked ~ .content .content-6,
+.tabs input.tab-selector-7:checked ~ .content .content-7,
+.tabs input.tab-selector-8:checked ~ .content .content-8,
+.tabs input.tab-selector-9:checked ~ .content .content-9{
     -webkit-transform: translateX(0px);
 	-moz-transform: translateX(0px);
 	-o-transform: translateX(0px);
