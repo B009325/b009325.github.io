@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+proc format;
+value age_grp 
+low-20 = '17-20'
+21-25 = '21-25'
+26-35 = '26-35'
+36-45 = '36-45'
+46-55 = '46-55'
+56-high = '56+'
+other='UNKNOWN'
+;
+run;
+
+proc format;
+value vehVal_grp
+low-999 = '0 - £999'
+1000-3999.99 = '£1,000 - £3,999'
+4000-7999.99 = '£4,000 - £7,999'
+8000-11999.99 = '£8,000 - £11,999'
+12000-14999.99= '£12,000 - £14,999'
+15000-19999.99 ='£15,000 - £19,999'
+20000-29999.99 = '£20,000 - £29,999'
+30000-high ='£30,000+' 
+other = 'UNKNOWN'
+;
+run;
+
+proc format;
+value engine_grp 
+low-.99 = '< 1.0'
+1.0-1.599 = '1.0-1.5'
+1.6-1.99 = '1.6-1.9'
+2.0-2.99 = '2.0-2.9'
+3.0-3.99 = '3.0-3.9'
+4.0-high = '4.0+'
+other='UNKNOWN'
+;
+run;
+
+</code>
+</pre>
+
+</body>
+</html>
+
+
+
+
