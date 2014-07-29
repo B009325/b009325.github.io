@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/* start goal loop */
+
+data goals;
+set traffic2(keep=goals);
+where index(upcase(goals),'START WL') > 0;
+run;
+
+data goals2/*(drop=datetime Elements N_Delim)*/;
+set goals;
+Retain Elements;
+  N_Delim = ( COMPRESS ( goals, ',', 'K' ) );
+  if N_Delim = '' then N_Elements = 1;
+  	else N_Elements = Length(N_Delim)+1;
+  Elements = MAX ( Elements, N_Elements);
+  call symput('Elements',compress(Elements));
+RUN;
+
+%put &elements.;
+
+data goals3;
+set goals2;
+	ARRAY cc{&elements} $100. c1-c&elements;
+		do i = 1 to hbound(cc);
+		if i <= N_Elements then
+		cc{i} = SCAN(goals, i, ',');
+		else leave;
+		end;
+run;
+data goalList;
+length column $100.;
+stop;
+run;
+
+%macro create(howmany);
+   %do i=1 %to &howmany;
+	proc sql noprint;
+	insert into goalList(column)
+	select upcase(c&i)
+	from goals3
+	where index(lowcase(c&i),'start wl') > 0;
+   %end;
+%mend create;
+
+%create(&elements);
+
+proc sql;
+create table unique_wl_goals as
+select distinct column as goal
+from goallist;
+quit;
+
+proc sql noprint;
+select count(*) into: goalcount
+from unique_wl_goals;
+quit;
+
+%put &goalcount.;
+
+proc sql noprint;
+select goal into: goalarray separated by '","'
+from unique_wl_goals;
+quit;
+
+
+/* write goals into array */
+proc sql noprint;
+select tranwrd(compress(substr(goal,10)),"&","AND") into: goal1 - :goal9999
+from unique_wl_goals;
+quit;
+
+%put _all_;
+
+%macro goalLoop(times);
+%do i = 1 %to &goalcount.;
+,case when index(compress(tranwrd(goals,"&","AND")),"STARTWL&&goal&i") then 1 else 0 end as WL_SESS_&&goal&i.
+,case when index(compress(tranwrd(goals,"&","AND")),"COMPLETEWL&&goal&i") then 1 else 0 end as WL_CLICK_&&goal&i.
+%put ",case when index(compress(tranwrd(goals,'&','AND')),'START WL &&goal&i') then 1 else 0 end as WL_&&goal&i.";
+%end;
+%mend goalLoop;
+
+
+</code>
+</pre>
+
+</body>
+</html>
+
+
+
+
