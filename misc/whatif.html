@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+options mprint;
+
+%let reduction=5;
+
+%let start_date = 20130501;
+%let end_date = 20131031;
+
+PROC SQL;
+ CREATE TABLE car_responses AS 
+ SELECT RqstDtKey,
+	 CustId,
+	 QutnId,
+	 ProdId,
+	 AnnPrem,
+	 QutnRspeRank 
+ FROM DW_FACT.CarQutnRspe b
+ WHERE rqstdtkey >= &start_date.
+ AND rqstdtkey <= &end_Date.
+ ORDER BY CustId, QutnId, QutnRspeRank;
+QUIT;
+ 
+proc transpose data=car_responses out=have_transposed (drop=_name_ _label_) prefix=annprem;
+by CustId QutnId;
+var annprem;
+run;
+ 
+* Max group of products quoted;
+proc sql noprint;
+select max(numproducts)
+into :maxproducts
+from (
+select count(*) as numproducts
+from car_responses
+group by custid, qutnid);
+quit;
+ 
+%put ### &maxproducts ###;
+ 
+%macro newRank;
+ 
+data new_ranks(drop=i);
+length annprem1-annprem%trim(&maxproducts) 8;
+set car_responses;
+if _n_=1 then do;
+  dcl hash hh (dataset:'have_transposed');
+  hh.definekey('custid','qutnid');
+  hh.definedata(all:'yes');
+  hh.definedone();
+end;
+array rank_less {5} rank_less_1-rank_less_5;
+array rank_plus {5} rank_plus_1-rank_plus_5;
+array prem_less {5} prem_less_1-prem_less_5;
+array prem_plus {5} prem_plus_1-prem_plus_5;
+do i = 1 to 5;
+rank_less{i}=1;
+rank_plus{i}=1;
+prem_plus{i}=annprem*(1+i/100);
+prem_less{i}=annprem*(1-i/100);
+
+
+hh.find();
+%do i=1 %to &maxproducts;
+  if annprem&i & prem_less{i}>annprem&i then rank_less{i}+1;   
+  if annprem&i & prem_plus{i}>annprem&i then rank_plus{i}+1;
+%end;
+drop annprem1-annprem%trim(&maxproducts);
+
+end;
+run;
+*proc print data=new_ranks;
+*run;
+ 
+%mend newRank;
+ 
+%newRank;
+
+
+</code>
+</pre>
+
+</body>
+</html>
+
+
+
+
