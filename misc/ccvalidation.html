@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+data validation(drop=i);
+retain atd;
+set merged;
+ccnum = tccnum;
+if length(tccnum) >= 16 then do;
+	ARRAY cc{17} c1-c17;
+	ARRAY ww{17} w1-w17;
+	ARRAY dxw{17} dxw1-dxw17;
+	ARRAY adt{17} adt1-adt17;
+	if length(tccnum) = 16 then tccnum = '00'||tccnum;
+	check_digit = substr(reverse(tccnum),1,1);
+	tccnum = substr(tccnum,1,length(tccnum)-1);
+	atd = 0;
+		do i = 1 to 17;
+		cc{i} = substr(tccnum,i,1);
+			do;
+			if mod(i,2) = 0 then ww{i} = 1;
+			else ww{i} = 2;
+			end;	
+		dxw{i} = cc{i} * ww{i};
+			do;
+			if length(compress(put(dxw{i},$2.))) = 2 then 
+			adt{i} = input(substr(compress(put(dxw{i},$2.)),1,1),2.) + input(substr(compress(put(dxw{i},$2.)),2,1),2.);
+			else adt{i} = dxw{i};
+			end;
+		if adt{i} ne . then atd = atd + adt{i};
+		end;
+	ld = input(substr(compress(put(atd,$2.)),2,1),2.);
+	valid = 'N';
+	if ld = 0 then 
+	do;
+		if check_digit = 0 then valid = 'Y';
+		else valid = 'N';
+	end;
+	else if 10 - ld = check_digit then valid = 'Y';
+end;
+else valid = 'N';
+run;
+
+</code>
+</pre>
+
+</body>
+</html>
+
+
+
+
