@@ -183,25 +183,6 @@
 	padding-bottom:5px;
 }
 
-.content a:link {
-    color: #398080;
-}
-
-/* visited link */
-.content a:visited {
-    color: #398080;
-}
-
-/* mouse over link */
-.content a:hover {
-    color: #000000;
-}
-
-/* selected link */
-.content a:active {
-    color: #398080;
-}
-
 
 .tabs input.tab-selector-1:checked ~ .content .content-1,
 .tabs input.tab-selector-2:checked ~ .content .content-2,
