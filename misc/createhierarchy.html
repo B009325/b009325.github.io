@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+/*create hierarchy*/
+
+CREATE TABLE wsale_hier AS
+ SELECT child_key,
+  resp_code      ,
+  resp_desc      ,
+  original_code  ,
+  rel_bu         ,
+  level_from_parent,
+  LEAF,
+  trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 2),2)) l1,
+     trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 3),2)) l2,
+       trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 4),2))  l3 ,
+         trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 5),2)) l4  ,
+          trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 6),2)) l5  ,
+             trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 7),2)) l6  ,
+               trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 8),2)) l7  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 9),2)) l8  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 10),2))  l9  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 11),2))  l10  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 12),2))  l11  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 13),2))  l12  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 14),2))  l13  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 15),2))  l14  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 16),2))  l15  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 17),2))  l16  ,
+                 trim(substr(regexp_substr(CODE_PATH, '/[^/]*', 1, 18),2))  l17  ,
+   trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 2),2))  d1  ,
+     trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 3),2)) d2  ,
+       trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 4),2))  d3  ,
+         trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 5),2)) d4  ,
+           trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 6),2)) d5  ,
+             trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 7),2)) d6  ,
+               trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 8),2)) d7  ,
+                 trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 9),2)) d8  ,
+                 trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 10),2))  d9  ,
+                 trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 11),2))  d10  ,
+                 trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 12),2))  d11  ,
+                 trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 13),2))  d12  ,
+           trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 14),2))  d13  ,
+                 trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 15),2))  d14  ,
+                 trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 16),2))  d15  ,
+                 trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 17),2))  d16  ,
+                 trim(substr(regexp_substr(CODE_DESC, '/[^/]*', 1, 18),2))  d17  
+ from (
+ 
+ select child_key,
+  resp_code      ,
+  resp_desc      ,
+  original_code  ,
+  rel_bu         ,
+  LEVEL level_from_parent,
+  connect_by_isleaf "LEAF",
+  SYS_CONNECT_BY_PATH(resp_code, '/') CODE_PATH,
+  SYS_CONNECT_BY_PATH(TRANSLATE(resp_desc, '/', '-'), '/') CODE_DESC
+   FROM (Select a.*      ,
+  b.resp_code    ,
+  b.resp_desc    ,
+  b.original_code,
+  b.rel_bu
+   FROM 
+  (SELECT *
+     FROM mi_owner.birt_resp_parent_child
+    WHERE end_date=to_date('31-DEC-3500','DD-MON-YYYY')
+  ) a
+INNER JOIN
+  (SELECT *
+     FROM mi_owner.birt_resp_desc_dim
+   WHERE end_date=to_date('31-DEC-3500','DD-MON-YYYY')
+  ) b
+     ON a.child_key=b.current_resp_code_desc_id) z START
+WITH resp_code='30XCB1XX' CONNECT BY PRIOR child_key = parent_key)
+ 
+where leaf=1;
+
+
+/*hierarchy end;*/
+
+
+</code>
+</pre>
+
+</body>
+</html>
+
+
+
+
