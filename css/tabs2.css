@@ -210,7 +210,8 @@
 }
 
 .content div h2 {
-	color: #398080;
+	color: #5A6D6D;
+	text-decoration:underline;
 	line-height: 10px;
 	font-size:18px;	
 	padding-top:15px;
