@@ -44,3 +44,6 @@ div#description {
 	padding-left: 50px;
 	padding-right: 0px;
 	}
+p#fright {
+	float:right;
+	}
