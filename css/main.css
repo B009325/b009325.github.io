@@ -45,19 +45,19 @@ a:active {
      padding-top:100px;
 }
 #leftcolumn, #rightcolumn {
-    border: 1px solid white;
+/*    border: 1px solid white; */
     float: left;
-    min-height: 50px;
-    color: white;
+/*    min-height: 50px; */
+/*    color: white; */
 }
 #leftcolumn {
      width: 45%;
-     background-color: #111;
+/*     background-color: #111; */
 }
 
 #rightcolumn {
      width: 45%;
-     background-color: #777;
+/*     background-color: #777; */
 }
 
 .clear { 
