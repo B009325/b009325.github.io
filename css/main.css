@@ -40,7 +40,7 @@ a:active {
 }
 
 #wrapper {
-     width: 1005px;
+     width: 100%;
      padding-left:50px;
      padding-top:100px;
 }
