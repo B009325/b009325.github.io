@@ -59,6 +59,10 @@ a:active {
      width: 45%;
 /*     background-color: #777; */
 }
+#downloadbit {
+     float:left;
+}
+
 
 .clear { 
     clear:both; 
