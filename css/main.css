@@ -51,12 +51,12 @@ a:active {
     color: white;
 }
 #leftcolumn {
-     width: 250px;
+     width: 70%;
      background-color: #111;
 }
 
 #rightcolumn {
-     width: 750px;
+     width: 30%;
      background-color: #777;
 }
 
