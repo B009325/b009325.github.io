@@ -59,6 +59,6 @@ a:active {
      background-color: #777;
 }
 
-{
-clear:both;
+.clear { 
+    clear:both; 
 }
