@@ -44,20 +44,17 @@ a:active {
      padding-left:50px;
      padding-top:100px;
 }
-#leftcolumn, #rightcolumn {
-    border: 1px solid white;
-    float: left;
-    min-height: 50px;
-    color: white;
-}
+
 #leftcolumn {
      width: 250px;
      background-color: #111;
+     float:left;
 }
 
 #rightcolumn {
      width: 750px;
      background-color: #777;
+     float:right;
 }
 
 .clear { 
