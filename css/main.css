@@ -48,4 +48,5 @@ div#description {
 div#dl {
 	width:50%;
 	display:inline;
+	float:right;
 	}
