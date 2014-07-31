@@ -39,11 +39,13 @@ a:active {
     color: #398080;
 }
 div#description {
+	width:50%;
 	padding-top: 100px;
 	padding-bottom: 5px;
 	padding-left: 50px;
 	padding-right: 0px;
 	}
 div#dl {
+	width:50%;
 	display:inline;
 	}
