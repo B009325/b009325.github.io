@@ -57,6 +57,7 @@ a:active {
 
 #rightcolumn {
      width: 45%;
+     align:right;
 /*     background-color: #777; */
 }
 
