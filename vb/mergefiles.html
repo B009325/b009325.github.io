@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+Sub merge()
+
+
+    Dim MyPath As String, FilesInPath, XLFilesinPath As String
+    Dim MyFiles() As String, Fnum As Long
+    Dim CalcMode As Long
+    Dim sh As Worksheet
+
+    mypath1 = "D:\KR20\Desktop\Daily Plan Requests\"
+    
+    Dim mybook As Workbook
+    Dim otherbook As Workbook
+    Dim mysheet As Worksheet
+    Dim ws As Worksheet
+    
+    Set mybook = ThisWorkbook
+    Set mysheet = mybook.Sheets(1)
+    
+    FilesInPath = Dir(mypath1 & "*.xls*")
+    If FilesInPath = "" Then
+        MsgBox "No files found"
+        Exit Sub
+    End If
+
+    Fnum = 0
+    Do While FilesInPath <> ""
+        Fnum = Fnum + 1
+        ReDim Preserve MyFiles(1 To Fnum)
+        MyFiles(Fnum) = FilesInPath
+        FilesInPath = Dir()
+    Loop
+
+    With Application
+        CalcMode = .Calculation
+        .Calculation = xlCalculationManual
+        .ScreenUpdating = False
+        .EnableEvents = False
+        .DisplayAlerts = False
+    End With
+
+    If Fnum > 0 Then
+        For Fnum = LBound(MyFiles) To UBound(MyFiles)
+            Set otherbook = Nothing
+            On Error GoTo 0
+            If Left(MyFiles(Fnum), 21) <> "Daily Variance Report" Then
+            Set otherbook = Workbooks.Open(mypath1 & MyFiles(Fnum))
+            Set ws = otherbook.Sheets(1)
+            
+            'Do stuff
+             Dim LastRow As Integer
+             Dim i As Integer
+             LastRow = ws.Range("B65536").End(xlUp).Row
+             For i = 2 To LastRow
+             ws.Range("A" & i, "AB" & i).Copy
+             mysheet.Activate
+             Range("A65535").End(xlUp).Offset(1, 0).Select
+             mysheet.Paste
+             Next i
+             End If
+            
+            'End Do Stuff
+            
+             If Not otherbook Is Nothing Then
+             otherbook.Close savechanges:=False
+             End If
+        Next Fnum
+    End If
+
+    With Application
+        .ScreenUpdating = True
+        .EnableEvents = True
+        .Calculation = xlCalculationAutomatic
+        .DisplayAlerts = True
+    End With
+
+
+error1:
+End Sub
+
+
+</code>
+</pre>
+
+</body>
+</html>
