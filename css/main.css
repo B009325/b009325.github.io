@@ -40,7 +40,7 @@ a:active {
 }
 
 #wrapper {
-     width: 1000px;
+     width: 1005px;
      margin: 0 auto;
 }
 #leftcolumn, #rightcolumn {
@@ -50,10 +50,12 @@ a:active {
     color: white;
 }
 #leftcolumn {
-     width: 500px;
+     width: 250px;
      background-color: #111;
 }
+
 #rightcolumn {
-     width: 500px;
+     width: 750px;
      background-color: #777;
 }
+
