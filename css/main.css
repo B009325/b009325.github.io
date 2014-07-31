@@ -46,7 +46,7 @@ a:active {
 #leftcolumn, #rightcolumn {
     border: 1px solid white;
     float: left;
-    min-height: 450px;
+    min-height: 50px;
     color: white;
 }
 #leftcolumn {
