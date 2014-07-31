@@ -42,6 +42,8 @@ a:active {
 #wrapper {
      width: 1005px;
      margin: 0 auto;
+     padding-left:50px;
+     padding-top:200px;
 }
 #leftcolumn, #rightcolumn {
     border: 1px solid white;
