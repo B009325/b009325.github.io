@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html class="csstransforms no-csstransforms3d csstransitions">
+<head>
+
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<title>Data & Insight Team Code Dump Site</title>
+
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="/css/menu.css">
+	<link rel="stylesheet" type="text/css" href="/css/main.css">
+
+	<script type="text/javascript" src="/js/jquery.js"></script>
+
+</head>
+
+<body>
+
+<div id="headercont"></div>
+
+<script type="text/javascript">
+$( "#headercont" ).load( "/header.html" );
+</script>
+
+<pre>
+<code>
+
+Option Explicit
+
+Sub group()
+
+Dim ws As Worksheet
+
+'level 1
+group_rows Sheet3, 9, 10 'Visit Summary
+group_rows Sheet6, 9, 10 'all
+group_rows Sheet5, 9, 10 'all tesco
+group_rows Sheet10, 9, 10 'tesco .com
+group_rows Sheet11, 9, 10 'tesco bank
+group_rows Sheet7, 9, 10 'orgsea
+group_rows Sheet8, 9, 10 'tv
+group_rows Sheet9, 9, 10 'aff
+group_rows Sheet12, 9, 10 'ppc
+group_rows Sheet14, 9, 10 'org
+group_rows Sheet15, 9, 10 'mark email
+group_rows Sheet18, 9, 10 'SMT Summary
+
+'level 2
+group_rows Sheet3, 99, 100 'Summary
+group_rows Sheet11, 99, 100 'tesco bank
+group_rows Sheet10, 99, 100 'tesco .com
+group_rows Sheet15, 99, 100 'mark email
+group_rows Sheet9, 99, 100 'aff MSE
+group_rows Sheet18, 99, 100 'SMT Summary
+
+'level 3
+group_rows Sheet3, 189, 190 'Summary
+group_rows Sheet10, 189, 190 'tesco .com
+group_rows Sheet11, 189, 190 'tesco bank
+group_rows Sheet15, 189, 190 'market email
+group_rows Sheet9, 189, 190 'aff WLAC
+group_rows Sheet18, 189, 190 'SMT Summary
+
+'level4
+group_rows Sheet3, 279, 280 'Summary
+group_rows Sheet11, 279, 280 'tesco bank CC
+group_rows Sheet15, 279, 280 'market email
+group_rows Sheet9, 279, 280 'aff window
+
+'level5
+group_rows Sheet15, 369, 370 'market email
+
+Call brag1
+Call brag2
+
+
+End Sub
+
+Sub group_rows(ws As Worksheet, header, datastart)
+
+ws.Activate
+
+Dim area As Range
+Dim LR As Long
+Dim rng As Range
+LR = Range("B" & datastart).End(xlDown).Row
+
+Application.ScreenUpdating = False
+
+On Error Resume Next
+    With Range("B" & header & ":X" & LR)
+    .AutoFilter Field:=2, Criteria1:=">0"
+    Set rng = .Resize(.Rows.Count - 1, 1).Offset(1, 0).SpecialCells(xlCellTypeVisible)
+    .AutoFilter
+    End With
+On Error GoTo 0
+
+    If Not rng Is Nothing Then
+        For Each area In rng.Areas
+        area.EntireRow.group
+        Next area
+    End If
+    
+ActiveSheet.Outline.ShowLevels RowLevels:=1
+    
+Application.ScreenUpdating = True
+
+End Sub
+
+Sub ungroup()
+
+Application.ScreenUpdating = False
+
+Dim ws As Worksheet
+
+ungroup_rows Sheet6
+ungroup_rows Sheet5
+ungroup_rows Sheet10
+ungroup_rows Sheet11
+ungroup_rows Sheet7
+ungroup_rows Sheet8
+ungroup_rows Sheet9
+ungroup_rows Sheet12
+ungroup_rows Sheet14
+ungroup_rows Sheet15
+ungroup_rows Sheet3
+ungroup_rows Sheet18
+
+Application.ScreenUpdating = True
+
+
+End Sub
+
+Sub ungroup_rows(ws As Worksheet)
+
+ws.Activate
+
+    On Error Resume Next
+    Cells.Rows.ungroup
+    Cells.Rows.Select
+    
+    Cells.EntireRow.Hidden = False
+    On Error GoTo 0
+End Sub
+
+
+
+
+
+
+</code>
+</pre>
+
+</body>
+</html>
