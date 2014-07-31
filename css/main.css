@@ -38,18 +38,22 @@ a:hover {
 a:active {
     color: #398080;
 }
-div#wrapdescdl {
-	width:100%;
-	padding-top: 100px;
-	padding-bottom: 5px;
-	padding-left: 50px;
-	padding-right: 0px;
-	}
-div#description {
-	width:500px;
-	}
-div#dl {
-	width:500px;
-	display:inline;
-	float:right;
-	}
+
+#wrapper {
+     width: 1005px;
+     margin: 0 auto;
+}
+#leftcolumn, #rightcolumn {
+    border: 1px solid white;
+    float: left;
+    min-height: 450px;
+    color: white;
+}
+#leftcolumn {
+     width: 250px;
+     background-color: #111;
+}
+#rightcolumn {
+     width: 750px;
+     background-color: #777;
+}
