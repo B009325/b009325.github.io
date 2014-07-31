@@ -38,12 +38,15 @@ a:hover {
 a:active {
     color: #398080;
 }
-div#description {
-	width:50%;
+div#wrapdescdl {
+	width:100%;
 	padding-top: 100px;
 	padding-bottom: 5px;
 	padding-left: 50px;
 	padding-right: 0px;
+	}
+div#description {
+	width:50%;
 	}
 div#dl {
 	width:50%;
